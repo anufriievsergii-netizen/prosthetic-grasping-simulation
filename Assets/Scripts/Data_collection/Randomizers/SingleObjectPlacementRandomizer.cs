@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using UnityEngine.Perception.Randomization.Parameters;
-using UnityEngine.Perception.Randomization.Randomizers.Utilities;
+using UnityEngine.Perception.Randomization.Utilities;
 using UnityEngine.Perception.Randomization.Samplers;
 
 namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
@@ -18,7 +18,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// The list of prefabs from which to sample one object per iteration
         /// </summary>
         [Tooltip("The list of prefabs from which to sample one object per iteration.")]
-        public GameObjectParameter prefabs;
+        public CategoricalParameter<GameObject> prefabs;
 
         /// <summary>
         /// The plane onto which randomly placing the object 

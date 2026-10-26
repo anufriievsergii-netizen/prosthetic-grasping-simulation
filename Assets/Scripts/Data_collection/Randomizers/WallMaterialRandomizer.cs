@@ -16,7 +16,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// The list of materials to sample and apply to target wall
         /// </summary>
         [Tooltip("The list of materials to sample and apply to target wall.")]
-        public MaterialParameter materials;
+        public CategoricalParameter<Material> materials;
 
         /// The sampler to get a sample float in range [0, 1], this will be used
         /// to decide whether to apply a random material to the object or not
@@ -75,7 +75,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                         Debug.LogError("Material " + WALL_MATERIAL_NAME + " not found in " +
                                        tag.name + " GameObject. Stopping execution . . .");
                         // Stop execution
-                        UnityEditor.EditorApplication.isPlaying = false;
+                        SimulationStopper.Stop();
                     }
 
                     tag.GetComponent<Renderer>().materials = newMaterials;

@@ -104,11 +104,12 @@ def main(args):
                             'Expected Wrist but {} found.'.format(view)    
                         )
                 if not flag:
-                    raise Exception('No grasp type labeler with name {} found.'
-                                    'Are you sure this is the correct name? '
-                                    'Did you enable the grasp type labeler '
-                                    'during the data collection?'
-                                    .format(GRASP_TYPE_ANNOTATION_DEFINITION))
+                    # Perception 1.0 captures one frame before the first
+                    # iteration starts, when no object is in the scene yet
+                    print('No grasp type annotation ({}) for {}, therefore '
+                          'skipping it.'.format(GRASP_TYPE_ANNOTATION_DEFINITION,
+                                                filename))
+                    continue
                 
                 # Construct path as the real dataset one
                 partial_new_path = os.path.join(args.output_base_folder, 

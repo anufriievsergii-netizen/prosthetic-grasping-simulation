@@ -4,7 +4,7 @@
 # Grasp Pre-shape Selection by Synthetic Training: <br>Eye-in-hand Shared Control on the Hannes Prosthesis 
 </div>
 
-<img src="https://img.shields.io/badge/Unity-2020.3.11f1-green.svg?style=flat-square" alt="Unity 2020.3.20f1"> <img src="https://img.shields.io/badge/Perception-0.11.2--preview.2-blue.svg?style=flat-square" alt="Perception 0.11.2-preview.2">
+<img src="https://img.shields.io/badge/Unity-6000.6.5f1-green.svg?style=flat-square" alt="Unity 6000.6.5f1"> <img src="https://img.shields.io/badge/HDRP-17.6.0-orange.svg?style=flat-square" alt="HDRP 17.6.0"> <img src="https://img.shields.io/badge/Perception-1.0.0--preview.1%20(patched)-blue.svg?style=flat-square" alt="Perception 1.0.0-preview.1">
 
 
 
@@ -28,31 +28,38 @@
 We introduce a synthetic dataset generation pipeline designed for vision-based prosthetic grasping. The method supports multiple grasps per object by overlaying a transparent parallelepiped onto each object part to grasp. The camera follows a straight line towards the object part while recording the video. The scene, initial camera position and object pose are randomized in each video. <br>We used 15 objects from the YCB dataset, where 7 of them have one grasp and 8 of them have multiple grasps, resulting in _31 grasp type - object part_ pairs.<br>_Our work is accepted to IROS 2022_.
 
 ## Getting started
-- The project uses Unity 2020.3.11.f1. Find the version [here](https://unity3d.com/get-unity/download/archive) and click on the `Unity Hub` button to download.
-- It has been tested on Windows 10/11.
-- All the necessary packages (e.g. [Perception](https://github.com/Unity-Technologies/com.unity.perception)) come pre-installed in the repository, therefore no installation step is required.
+- The project uses Unity 6000.6.5f1 (Unity 6) with HDRP 17.6.0. Install it from the Unity Hub (`Installs -> Install Editor -> Archive`).
+- It has been tested on Linux (Ubuntu). The original Unity 2020.3.11f1 version of the project (tested on Windows 10/11) is available on the `main` branch.
+- All the necessary packages come pre-installed in the repository, therefore no installation step is required.
+  - [Perception](https://github.com/Unity-Technologies/com.unity.perception) is archived and its last release (1.0.0-preview.1) does not compile on Unity 6000.6. A patched copy is embedded in `Packages/com.unity.perception` (see `PATCHES.md` there).
 
 ## Installation
-- Install [Git for Windows](https://git-scm.com/download/win) (notice that this is a project called Git for Windows, which is not Git itself)
-- Install [Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage). 
-- Open a Command Prompt and run `git lfs install` to initialize it.<br>Then, clone the repository: `git clone https://github.com/hsp-iit/prosthetic-grasping-simulation`
-- Git LFS has some problems with the file `Assets/Scene/SampleScene/LightingData.asset`. Therefore, download the original `LightingData.asset` file from [here](https://drive.google.com/file/d/1b3FNFQTLm2TPxQbnImntQfC2IqRy9eas/view?usp=sharing) and replace it.
-- Go on the Unity Hub, click on Open and locate the downloaded repository.
+- Install Git and [Git LFS](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage). On Ubuntu: `sudo apt install git git-lfs` (on Windows use [Git for Windows](https://git-scm.com/download/win)).
+- Open a terminal and run `git lfs install` to initialize it.<br>Then, clone the repository and switch to this branch: `git clone -b upgrade_unity https://github.com/hsp-iit/prosthetic-grasping-simulation`
+- Go on the Unity Hub, click on `Add -> Add project from disk`, locate the downloaded repository and open it with Unity 6000.6.5f1. The first import takes a while.
+- [Linux laptops with NVIDIA + integrated GPU] The project renders with Vulkan, and Unity picks the discrete NVIDIA GPU automatically. You can check it in the Editor log (`~/.config/unity3d/Editor.log`), which should contain `Vulkan renderer=[NVIDIA ...]`, or with `nvidia-smi` while Unity is open. If the integrated GPU is picked instead, add `-force-device-index 1` (the NVIDIA index listed in the `[Vulkan init] Physical Device` lines of the log) to the project's command line arguments in the Unity Hub.
 
 ## Synthetic dataset generation in Unity
-- Once the project is open, ensure that the correct scene is selected: in the `Project` tab open `Assets\Scenes` and double-click on `Data_collection.unity` to open the scene.
+- Once the project is open, ensure that the correct scene is selected: in the `Project` tab open `Assets/Scenes` and double-click on `Data_collection.unity` to open the scene.
 - From the top bar menu, open `Edit -> Project Settings`
-  - In `Project Settings`, search for `Lit Shader Mode` and set it to `Both`.
+  - In `Project Settings`, search for `Lit Shader Mode` and set it to `Both` (in Unity 6 it is under `Quality -> HDRP -> Rendering`).
   ![lit_shader_mode](https://user-images.githubusercontent.com/50639319/192339142-3e17b12c-f81f-4828-ac54-b609185cb2d3.png)
 
   - In `Project Settings`, search for `Motion Blur` and disable it.
   ![motion_blur](https://user-images.githubusercontent.com/50639319/192340209-f4924a9e-977d-44c3-aee9-19729006eb70.png)
 
-- [OPTIONAL] The pipeline generates the same number of videos for each _grasp type - object part_ pair (recall, there are currently 31 pairs). 50 videos are generated for each pair, resulting in 1550 videos. From the `Hierarchy` tab (left-hand side) click on `Simulation Scenario` and its properties will appear in the `Inspector` tab (right-hand side). Make sure that the value of `Fixed Length Scenario -> Scenario Properties -> Constants -> Iteration Count` is set to 1550 <u>and</u> the value of `Fixed Length Scenario -> Randomizers -> WristCameraMovement -> Num Iterations Per Grasp` is set to 50. If you want to generate a different number of videos, change these values accordingly. For instance, to generate 10 videos for each pair, set `Iteration Count` to 31*10=310 <u>and</u> `Num Iterations Per Grasp` to 10. If the numbers are not consistent, the execution stops.
-- [OPTIONAL] To set the dataset output folder, go on `File -> Project Settings -> Perception` and click on the `Change Folder` button to set a net `Base Path`
+- [OPTIONAL] The pipeline generates the same number of videos for each _grasp type - object part_ pair (recall, there are currently 31 pairs). 50 videos are generated for each pair, resulting in 1550 videos. From the `Hierarchy` tab (left-hand side) click on `Simulation Scenario` and its properties will appear in the `Inspector` tab (right-hand side). Make sure that the value of `Fixed Length Scenario -> Scenario Properties -> Constants -> Iteration Count` is set to 1550 (and `Frames Per Iteration`, which in Perception 1.0 is a field of the scenario itself, to 90) <u>and</u> the value of `Fixed Length Scenario -> Randomizers -> WristCameraMovement -> Num Iterations Per Grasp` is set to 50. If you want to generate a different number of videos, change these values accordingly. For instance, to generate 10 videos for each pair, set `Iteration Count` to 31*10=310 <u>and</u> `Num Iterations Per Grasp` to 10. If the numbers are not consistent, the execution stops.
+- [OPTIONAL] To set the dataset output folder, go on `Edit -> Project Settings -> Perception` and click on the `Change Folder` button to set a new `Base Path`. Keep `Perception` (not `Solo`) as the active endpoint: it produces the `captures_***.json` format expected by the conversion script.
 - :rocket: Click on the play button on top to start collecting the synthetic dataset.
+  - [WARNING] On GPUs with 4 GB of memory (e.g. RTX 3050 Laptop) the Editor together with the simulation can run out of GPU memory, and the Editor may freeze while waiting for a frame to be presented. In that case generate the dataset with a Linux build instead (see below).
 - [WARNING]: if you want to change settings, e.g., enable bounding box/semantic segmentation labeling or import your own objects, few settings need to be adjusted. These are not explained here for the sake of brevity, feel free to contact me (federico.vasile@iit.it) or open an issue and I will provide you all the instructions.
 - When the simulation is over, go on the `Hierarchy` tab and select `WristCamera`. In the `Inspector` tab search for `Latest Generated Dataset` and click on `Show folder` to locate the dataset folder.
+
+## Synthetic dataset generation with a Linux build
+A standalone build uses less GPU memory than the Editor and is the most reliable way to generate the full dataset.
+- Set the scenario values (`Iteration Count`, `Frames Per Iteration`, `Num Iterations Per Grasp`) in the `Data_collection` scene as described above and save the scene.
+- Open `File -> Build Profiles`, select `Linux`, make sure `Scenes/Data_collection` is the only scene in the list, click `Build` and choose an empty folder outside the repository (e.g. `~/builds/data_collection`), naming the executable `DataCollection`. The first build takes about 30 minutes (shader compilation).
+- Run it with `./run_data_collection.sh ~/builds/data_collection/DataCollection.x86_64 ~/synthetic_dataset`. A 1280x960 window shows the simulation (it must stay open: Linux builds do not render cameras in `-batchmode`), the dataset is written to `~/synthetic_dataset/<hash>/` and the window closes when all the videos are generated.
 
 ## Converting the generated videos into our own format
 - Once you are in the dataset folder mentioned above, you can find the labels (along with other metadata) as json files (`captures_***.json`) into the `Dataset023982da-0257-4541-9886-d22172b6c94c` folder (this is an example folder, you will have a different hash code following the `Dataset` name). <br>All the video frames (`rgb_***.png`) are located under the `RGB_another_hash_code_` folder.

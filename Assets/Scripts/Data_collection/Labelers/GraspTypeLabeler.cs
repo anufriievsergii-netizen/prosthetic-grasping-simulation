@@ -6,6 +6,8 @@ using UnityEngine.Rendering;
 using UnityEngine.Perception.GroundTruth;
 using UnityEngine.Perception.GroundTruth.DataModel;
 using UnityEngine.Perception.Settings;
+using UnityEngine.Perception.Randomization.Scenarios;
+using UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers;
 
 
 /// <summary>
@@ -39,6 +41,26 @@ public sealed class GraspTypeLabeler : CameraLabeler
         {
             this.graspTypeValues = graspTypeValues;
         }
+
+        // Perception 1.0 serializes custom annotations only through ToMessage,
+        // so the grasp values must be written explicitly. Keys match the ones
+        // read by python_scripts/Data_collection/convert_dataset.py
+        public override void ToMessage(IMessageBuilder builder)
+        {
+            base.ToMessage(builder);
+            builder.AddString("model_type", modelType);
+            var values = builder.AddNestedMessage("grasp_type_values");
+            values.AddString("object_name", graspTypeValues.objectName);
+            values.AddString("instance_name", graspTypeValues.instanceName);
+            values.AddString("texture_name", graspTypeValues.textureName);
+            values.AddString("grasp_type_name", graspTypeValues.graspTypeName);
+            values.AddString("preshape_name", graspTypeValues.preshapeName);
+            values.AddString("view_type_name", graspTypeValues.viewTypeName);
+            values.AddString("object_side", graspTypeValues.objectSide);
+            values.AddBool("no_pronation_supination", graspTypeValues.noPronationSupination);
+            values.AddBool("upside_down", graspTypeValues.upsideDown);
+            values.AddBool("sampling_upside_down", graspTypeValues.samplingUpsideDown);
+        }
     }
 
     protected override void Setup()
@@ -50,7 +72,7 @@ public sealed class GraspTypeLabeler : CameraLabeler
         {
             Debug.LogError("Wrong value in View Type field: " + viewType + ". " +
                            "Currently, the only admitted value is [Wrist]");
-            UnityEditor.EditorApplication.isPlaying = false;
+            SimulationStopper.Stop();
         }
     }
 
@@ -205,6 +227,10 @@ public sealed class GraspTypeLabeler : CameraLabeler
                 objInScene = tran.gameObject;
             }
         }
+        // Perception 1.0 starts capturing one frame before the scenario starts
+        // its first iteration, so no object is placed yet: nothing to label
+        if (count == 0 && simulationScenario.GetComponent<ScenarioBase>().currentIteration == 0)
+            return;
         if (count != 1)
         {
             throw new Exception("There must be one object in scene, but " + count + " were found");
@@ -225,7 +251,7 @@ public sealed class GraspTypeLabeler : CameraLabeler
         if (countActiveGrasp != 1)
         {
             Debug.LogError("SOMETHING WENT WRONG, THERE MUST BE EXACTLY ONE GRASP BUT " + countActiveGrasp + " FOUND. STOPPING EXECUTION . . .");
-            UnityEditor.EditorApplication.isPlaying = false;
+            SimulationStopper.Stop();
         }
 
         string instanceName = objInScene.name.Replace("(Clone)", "");

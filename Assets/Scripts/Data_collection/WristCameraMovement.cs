@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine.Perception.Randomization.Scenarios;
 using UnityEngine.Perception.Randomization.Samplers;
 using UnityEngine.Perception.Randomization.Parameters;
-using UnityEngine.Perception.Randomization.Randomizers.Utilities;
+using UnityEngine.Perception.Randomization.Utilities;
 
 namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 {
@@ -103,7 +103,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// The list of prefabs from which to sample one object per iteration
         /// </summary>
         [Tooltip("The list of prefabs from which to sample one object per iteration.")]
-        public GameObjectParameter prefabs;
+        public CategoricalParameter<GameObject> prefabs;
 
         private GameObject m_Container;
         private GameObjectOneWayCache m_GameObjectOneWayCache;
@@ -137,7 +137,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// The list of materials to sample and apply to target objects
         /// </summary>
         [Tooltip("The list of materials to sample and apply to target objects.")]
-        public MaterialParameter materialsObject;
+        public CategoricalParameter<Material> materialsObject;
         /// The sampler to get a sample float in range [0, 1]. This will be used
         /// to decide whether to apply a random material to the object or not.
         private UniformSampler samplerApplyMaterialObject;
@@ -188,7 +188,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// The list of materials to sample and apply to the hand 
         /// </summary>
         [Tooltip("The list of materials to sample and apply to the hand")]
-        public MaterialParameter materialsHand;
+        public CategoricalParameter<Material> materialsHand;
         private UniformSampler samplerApplyMaterialHand;
         /// <summary>
         /// A float value between 0 and 1. The higher the value, the more likely it is
@@ -243,12 +243,12 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
                     Debug.LogError("Hannes_ARM random hand transformation not implemented yet");
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
                 else
                 {
                     Debug.LogError("Unknown hand model");
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
 
                 hand.transform.localPosition = position;
@@ -269,12 +269,12 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
                     Debug.LogError("Hannes_ARM random hand material not implemented yet");
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
                 else
                 {
                     Debug.LogError("Unknown hand model");
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
             }
         }
@@ -430,7 +430,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         protected override void OnAwake()
         {
             // Get the sequence length
-            framesPerIteration = (float)((FixedLengthScenario)scenario).constants.framesPerIteration;
+            framesPerIteration = (float)((FixedLengthScenario)scenario).framesPerIteration;
 
             // Get the plane ranges onto which randomly put the camera
             float rangeYwrist = planeWristPlacement.GetComponent<Renderer>().bounds.extents.y;
@@ -494,7 +494,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                                ". However, the number of iterations declared " +
                                "in FixedLengthScenario is " + totalIterations);
                 // Stop execution
-                UnityEditor.EditorApplication.isPlaying = false;
+                SimulationStopper.Stop();
             }
 
             // The sampler for object rotation around y axis 
@@ -541,12 +541,12 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             else if (hand.name.Contains("Hannes_ARM"))
             {
                 Debug.LogError("Hannes_ARM range of values not implemented yet");
-                UnityEditor.EditorApplication.isPlaying = false;
+                SimulationStopper.Stop();
             }
             else
             {
                 Debug.LogError("Unknown hand model");
-                UnityEditor.EditorApplication.isPlaying = false;
+                SimulationStopper.Stop();
             }
 
             samplerApplyMaterialHand = new UniformSampler(0, 1);
@@ -638,7 +638,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                                    "found. Stopping execution . . .");
                     //Debug.DrawLine(wristCamera.transform.position, target.position, Color.green);
                     // Stop execution
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
                 else
                 {
@@ -673,7 +673,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 Debug.LogError("INVALID iteration: no feasible camera-object pose " +
                                "found for [" + objInScene.name + "][" + graspToExecute.name + "]");
                 // Stop execution
-                UnityEditor.EditorApplication.isPlaying = false;
+                SimulationStopper.Stop();
             }
 
             // Compute pronation-supination angle
@@ -880,12 +880,12 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
                     Debug.LogError("Hannes_ARM restoring back initial material not implemented yet");
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
                 else
                 {
                     Debug.LogError("Unknown hand model");
-                    UnityEditor.EditorApplication.isPlaying = false;
+                    SimulationStopper.Stop();
                 }
             }
 

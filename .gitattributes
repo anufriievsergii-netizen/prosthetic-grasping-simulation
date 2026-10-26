@@ -14,6 +14,9 @@
 *.meta merge=unityyamlmerge eol=lf
 *.controller merge=unityyamlmerge eol=lf
 
+# Baked lighting data is binary: the eol=lf rule above corrupts it
+LightingData.asset binary
+
 
 ## git-lfs ##
 
