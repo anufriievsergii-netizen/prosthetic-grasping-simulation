@@ -81,8 +81,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         // The wrist flexion-extension will be perfomed towards (looking at) the other point
         private UniformSampler samplerTargetPoint;
 
-        private bool isPositive;
-
         private float framesPerIteration;
 
         // The 2d points describing the minimum jerk straight line trajectory
@@ -808,45 +806,19 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             // Flexion-extension rotation
             if (framesCounter >= feRotationStartingSampledValue)
             {
-                Vector3 targetAngleDir = targetFePoint - wristCamera.transform.position;
-                
-                // Use the first line if you want to have flexion-extension
-                //  rotation randomly up (extension) or
-                //  down (flexion) for each sequence.
-                //  Otherwise use the second line it you want to rotate only down
-                feAngle = Vector3.SignedAngle(targetAngleDir, 
-                                              wristCamera.transform.forward, 
-                                              Vector3.up);
-		        //feAngle = Vector3.Angle(targetAngleDir, wristCamera.transform.forward);
-                
-                if (framesCounter == feRotationStartingSampledValue)
-                {
-                    if (feAngle > 0f)
-                    {
-                        isPositive = true;
-                    }
-                    else
-                    {
-                        isPositive = false;
-                    }
-                }
-                else
-                {
-                    if ((isPositive && feAngle < 0f)
-                         || ((!isPositive) && feAngle > 0f))
-                    {
-                        // In some edge cases it happens that the camera flips up and down,
-                        // therefore the angle sometimes has positive values and sometimes 
-                        // negative values. To overcome this flipping, we keep track of the 
-                        // first sign of the angle and force the camera to rotate along that 
-                        // direction in the subsequent frames
-                        // A sample case in which we found this problem is (sometimes) in 
-                        // the adducted thumb case, so the code here is to overcome this problem
-                        feAngle *= -1f;
-                    }
-                }
+                // The flexion-extension is a rotation around the camera x axis, hence
+                // the angle towards targetFePoint is measured within the plane orthogonal
+                // to that axis, and signed w.r.t. that axis. In this way the rotation
+                // applied below always moves the camera towards targetFePoint (either up
+                // or down, depending on where targetFePoint is)
+                Vector3 feAxis = wristCamera.transform.right;
+                Vector3 targetAngleDir = Vector3.ProjectOnPlane(
+                    targetFePoint - wristCamera.transform.position, feAxis);
+                feAngle = Vector3.SignedAngle(wristCamera.transform.forward,
+                                              targetAngleDir,
+                                              feAxis);
 
-                wristCamera.transform.localRotation *= Quaternion.Euler(feAngle * 0.1f, 0f, 0f);        
+                wristCamera.transform.localRotation *= Quaternion.Euler(feAngle * 0.1f, 0f, 0f);
             }
         }
 
