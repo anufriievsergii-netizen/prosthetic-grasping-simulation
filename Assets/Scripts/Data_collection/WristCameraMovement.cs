@@ -321,17 +321,20 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 sampleX = - planeObjectPlacement.GetComponent<Renderer>().bounds.extents.x - 0.08f;
             }
 
-            // Compute the y offset necessary to have the object standing 
-            // on the table (i.e., neither on air nor inside the table).
-            // Get the distance from the origin of the object reference frame to
-            // the lowest part of the object.
-            float y_offset = instanceToPlace.transform.Find("textured").gameObject.
-                GetComponent<Renderer>().bounds.extents.y;
-
             // Place the object onto the plane
-            Vector3 instancePlacement = planeObjectPlacement.transform.position 
-                                        + new Vector3(sampleX, y_offset, sampleZ);
+            Vector3 instancePlacement = planeObjectPlacement.transform.position
+                                        + new Vector3(sampleX, 0f, sampleZ);
             instanceToPlace.transform.position = instancePlacement;
+
+            // Then shift it along y such that its lowest part lies onto the plane,
+            // in order to have the object standing on the table (i.e., neither on air
+            // nor inside the table). The world bounds are used, hence the object
+            // rotation must already be set, and no assumption is made on where the
+            // origin of the object reference frame is w.r.t. the mesh.
+            float y_offset = planeObjectPlacement.transform.position.y
+                             - instanceToPlace.transform.Find("textured").gameObject.
+                                 GetComponent<Renderer>().bounds.min.y;
+            instanceToPlace.transform.position += new Vector3(0f, y_offset, 0f);
         }
 
         private void randomObjectRotation(GameObject instanceToRotate, GameObject graspToExecute)
@@ -599,8 +602,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             objInScene = m_GameObjectOneWayCache.GetOrInstantiate(idxObj);
             graspToExecute = objInScene.transform.Find("textured").GetChild(idxGraspInObj).gameObject;
 
-            randomObjectPlacement(objInScene, graspToExecute);
+            // The rotation must be set before the placement, which depends on it
             randomObjectRotation(objInScene, graspToExecute);
+            randomObjectPlacement(objInScene, graspToExecute);
 
             randomObjectMaterial(objInScene);
 
@@ -677,8 +681,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                     // without hitting it): sample another camera position, object placement 
                     // and rotation
                     randomWristCameraPlacement();
-                    randomObjectPlacement(objInScene, graspToExecute);
+                    // The rotation must be set before the placement, which depends on it
                     randomObjectRotation(objInScene, graspToExecute);
+                    randomObjectPlacement(objInScene, graspToExecute);
                 }
             }
             if (i == MAX_ATTEMPTS)
