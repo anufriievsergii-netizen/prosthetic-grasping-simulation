@@ -86,8 +86,14 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         // The 2d points describing the minimum jerk straight line trajectory
         private List<Tuple<float, float>> minimumJerkPoints;
 
-        // Since there is a little displacement between the reference system of the camera 
+        // Since there is a little displacement between the reference system of the camera
         // and where the camera is placed
+        // NOTE: the camera stops REFERENCE_TO_CAMERA_OFFSET before the target point, and the
+        //       hand (child of the camera) is placed at about the same distance ahead of the
+        //       camera, hence in the last frames the hand mesh reaches the grasp target and may
+        //       intersect the object. This is deliberately left as is: the hand is a rigid mesh
+        //       (some overlap is unavoidable at the grasp moment), and increasing this offset
+        //       would change the final framing of every sequence
         private float REFERENCE_TO_CAMERA_OFFSET = 0.2f;
 
         /// <summary>
