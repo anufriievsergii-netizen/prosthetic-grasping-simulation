@@ -622,11 +622,22 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             // of the object must be deactivated, except the one corresponding to the label 
             // of that sequence (the current iteration will be labeled with the active grasp
             // child of the object). This is done on the instance in scene, such that the
-            // prefab assets are never modified
+            // prefab assets are never modified.
+            // The grasp parallelepipeds are only needed for their colliders, hence their
+            // renderers are disabled: otherwise (even if with a transparent material) they
+            // would be rendered by the labelers (the Labeling component is on the object
+            // root, hence it applies to all its child renderers), resulting in segmentation
+            // masks and bounding boxes containing the grasp parallelepiped
             Transform grasps = objInScene.transform.Find("textured");
             for (int idxGrasp = 0; idxGrasp < grasps.childCount; idxGrasp++)
             {
-                grasps.GetChild(idxGrasp).gameObject.SetActive(idxGrasp == idxGraspInObj);
+                GameObject grasp = grasps.GetChild(idxGrasp).gameObject;
+                grasp.SetActive(idxGrasp == idxGraspInObj);
+                Renderer graspRenderer = grasp.GetComponent<Renderer>();
+                if (graspRenderer != null)
+                {
+                    graspRenderer.enabled = false;
+                }
             }
 
             // The rotation must be set before the placement, which depends on it
