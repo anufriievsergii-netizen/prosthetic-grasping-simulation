@@ -685,9 +685,15 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 // Make the camera pointing at the center of the parallelepiped,
                 // in order to correctly compute the ps angle 
                 wristCamera.transform.LookAt(graspToExecute.transform);
-                psAngle = Vector3.SignedAngle(wristCamera.transform.right, 
-                                              graspToExecute.transform.right, 
-                                              Vector3.up);
+                // The pronation-supination is a rotation around the camera z axis, hence
+                // the angle is measured within the plane orthogonal to that axis, and
+                // signed w.r.t. that axis. A positive psAngle means that a rotation of
+                // psAngle around the camera z axis aligns the two vectors
+                Vector3 psAxis = wristCamera.transform.forward;
+                Vector3 graspRight = Vector3.ProjectOnPlane(graspToExecute.transform.right, psAxis);
+                psAngle = Vector3.SignedAngle(wristCamera.transform.right,
+                                              graspRight,
+                                              psAxis);
 
                 if (graspToExecute.name.Contains("adducted_thumb")
                     || (graspToExecute.name.Contains("small_diameter") && objInScene.name.Contains("048_hammer"))
@@ -715,9 +721,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                     {
                         psAngle = psAngle + (Mathf.Sign(psAngle) * -1 * 180);
                     }
-                    // Revert the sign since we will need to perform a rotation of -psAngle
-                    // around z axis to aling the two vectors generating the psAngle
-                    psAngle *= -1;
                 }
             }
             psAngle *= samplerPsPercentageRotation.Sample();
