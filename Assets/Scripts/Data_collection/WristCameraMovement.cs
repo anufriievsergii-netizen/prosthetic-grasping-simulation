@@ -91,6 +91,38 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         private float REFERENCE_TO_CAMERA_OFFSET = 0.2f;
 
         /// <summary>
+        /// The parameters sampled for a sequence. They are reported by the GraspTypeLabeler,
+        /// such that the generated data can be analyzed afterwards (e.g., the bias 
+        /// introduced by re-sampling the camera-object poses until the trajectory is valid)
+        /// </summary>
+        public struct SequenceParameters
+        {
+            // How many camera-object poses were sampled before finding a valid trajectory
+            public int placementAttempts;
+            // World position of the camera at the beginning of the sequence
+            public Vector3 cameraStartPosition;
+            // World position of the point reached by the straight line trajectory
+            public Vector3 targetPoint;
+            // Whether targetPoint is the upper (true) or lower (false) extremity of
+            // the grasp parallelepiped
+            public bool reachUpPoint;
+            public Vector3 objectPosition;
+            public float objectRotationY;
+            public float objectRotationZ;
+            // Total pronation-supination angle (degrees, 0 if not performed) and
+            // its starting frame and duration
+            public float psAngle;
+            public int psStartFrame;
+            public int psDurationFrames;
+            public int feStartFrame;
+        }
+
+        /// <summary>
+        /// The parameters sampled for the current sequence
+        /// </summary>
+        public SequenceParameters currentSequenceParameters { get; private set; }
+
+        /// <summary>
         /// The plane onto which randomly place the wrist camera before starting the sequence
         /// </summary>
         public GameObject planeWristPlacement;
@@ -804,6 +836,21 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             float xf = 0;
             float zf = dist;
             minimumJerkPoints = minimumJerkStraightLineTrajectory(x0, z0, xf, zf);
+
+            currentSequenceParameters = new SequenceParameters
+            {
+                placementAttempts = i + 1,
+                cameraStartPosition = wristCamera.transform.position,
+                targetPoint = targetPoint,
+                reachUpPoint = reachUpPoint,
+                objectPosition = objInScene.transform.position,
+                objectRotationY = objInScene.transform.eulerAngles.y,
+                objectRotationZ = objInScene.transform.eulerAngles.z,
+                psAngle = float.IsNaN(psAngle) ? 0f : psAngle,
+                psStartFrame = (int)psRotationStartingSampledValue,
+                psDurationFrames = (int)psRotationDurationSampledValue,
+                feStartFrame = (int)feRotationStartingSampledValue
+            };
         }
 
         protected override void OnUpdate()

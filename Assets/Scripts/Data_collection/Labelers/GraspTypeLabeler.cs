@@ -72,6 +72,25 @@ public sealed class GraspTypeLabeler : CameraLabeler
             values.AddBool("no_pronation_supination", graspTypeValues.noPronationSupination);
             values.AddBool("upside_down", graspTypeValues.upsideDown);
             values.AddBool("sampling_upside_down", graspTypeValues.samplingUpsideDown);
+
+            WristCameraMovement.SequenceParameters seq = graspTypeValues.sequenceParameters;
+            var seqValues = builder.AddNestedMessage("sequence_parameters");
+            seqValues.AddInt("placement_attempts", seq.placementAttempts);
+            seqValues.AddFloatArray("camera_start_position", ToArray(seq.cameraStartPosition));
+            seqValues.AddFloatArray("target_point", ToArray(seq.targetPoint));
+            seqValues.AddBool("reach_up_point", seq.reachUpPoint);
+            seqValues.AddFloatArray("object_position", ToArray(seq.objectPosition));
+            seqValues.AddFloat("object_rotation_y", seq.objectRotationY);
+            seqValues.AddFloat("object_rotation_z", seq.objectRotationZ);
+            seqValues.AddFloat("ps_angle", seq.psAngle);
+            seqValues.AddInt("ps_start_frame", seq.psStartFrame);
+            seqValues.AddInt("ps_duration_frames", seq.psDurationFrames);
+            seqValues.AddInt("fe_start_frame", seq.feStartFrame);
+        }
+
+        static float[] ToArray(Vector3 v)
+        {
+            return new float[] { v.x, v.y, v.z };
         }
     }
 
@@ -115,6 +134,8 @@ public sealed class GraspTypeLabeler : CameraLabeler
         public bool upsideDown;
         public bool samplingUpsideDown;
 
+        public WristCameraMovement.SequenceParameters sequenceParameters;
+
         public GraspTypeMetaValues(
             string objectName, 
             string instanceName, 
@@ -125,7 +146,8 @@ public sealed class GraspTypeLabeler : CameraLabeler
             string objectSide, 
             bool noPronationSupination, 
             bool upsideDown, 
-            bool samplingUpsideDown
+            bool samplingUpsideDown,
+            WristCameraMovement.SequenceParameters sequenceParameters
         )
         {
             this.objectName = objectName;
@@ -138,6 +160,7 @@ public sealed class GraspTypeLabeler : CameraLabeler
             this.noPronationSupination = noPronationSupination;
             this.upsideDown = upsideDown;
             this.samplingUpsideDown = samplingUpsideDown;
+            this.sequenceParameters = sequenceParameters;
         }
     }
 
@@ -308,7 +331,9 @@ public sealed class GraspTypeLabeler : CameraLabeler
             objectSide,
             noPronationSupination, 
             upsideDown, 
-            samplingUpsideDown
+            samplingUpsideDown,
+            simulationScenario.GetComponent<ScenarioBase>()
+                .GetRandomizer<WristCameraMovement>().currentSequenceParameters
         );
         var annotation = new GraspTypeAnnotation(graspTypeAnnotationDefinition, sensorHandle.Id, curSequenceValues);
         sensorHandle.ReportAnnotation(graspTypeAnnotationDefinition, annotation);
