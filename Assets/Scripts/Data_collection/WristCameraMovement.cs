@@ -203,11 +203,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             float sampledFloat = samplerApplyHandRandomization.Sample();
             if (sampledFloat <= samplingRangeHandInView)
             {
-                // Store the current pose of the hand (i.e., the one set in the editor), 
-                // since at the end of the sequence we will need to set it back
-                initialHandPosition = hand.transform.localPosition;
-                initialHandRotation = hand.transform.localRotation;
-
                 Vector3 position = Vector3.zero;
                 Quaternion rotation = Quaternion.Euler(0, 0, 0);
 
@@ -523,6 +518,13 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 
             // To decide whether or not to apply the hand position and rotation randomization
             samplerApplyHandRandomization = new UniformSampler(0, 1);
+
+            // Store the initial pose of the hand (i.e., the one set in the editor), since
+            // at the end of each sequence we will need to set it back. This must be done
+            // here (and not only when the hand pose is randomized), otherwise the hand
+            // would be reset to the default (zero) values
+            initialHandPosition = hand.transform.localPosition;
+            initialHandRotation = hand.transform.localRotation;
 
             // The value inserted here into the samplers are HARD-CODED by several trails
             // into the unity editor to manually check what is the reasonable range of values
