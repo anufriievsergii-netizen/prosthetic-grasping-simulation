@@ -22,6 +22,18 @@ public sealed class GraspTypeLabeler : CameraLabeler
     public override string labelerId => "GraspType";
     protected override bool supportsVisualization => false;
 
+    // Set when the simulation is being stopped. SimulationStopper.Stop() does not take
+    // effect immediately (e.g., in the Editor play mode ends at the end of the frame), 
+    // hence this flag is used to not report any (wrong) annotation in the meantime
+    private bool isStopped = false;
+
+    private void StopSimulation(string message)
+    {
+        Debug.LogError(message);
+        SimulationStopper.Stop();
+        isStopped = true;
+    }
+
     class GraspTypeAnnotationDefinition : AnnotationDefinition
     {
         public GraspTypeAnnotationDefinition(string id) : base(id) { }
@@ -70,9 +82,8 @@ public sealed class GraspTypeLabeler : CameraLabeler
 
         if (viewType != "Wrist")
         {
-            Debug.LogError("Wrong value in View Type field: " + viewType + ". " +
+            StopSimulation("Wrong value in View Type field: " + viewType + ". " +
                            "Currently, the only admitted value is [Wrist]");
-            SimulationStopper.Stop();
         }
     }
 
@@ -201,7 +212,7 @@ public sealed class GraspTypeLabeler : CameraLabeler
 
     protected override void OnBeginRendering(ScriptableRenderContext scriptableRenderContext)
     {
-        if (! sensorHandle.ShouldCaptureThisFrame)
+        if (isStopped || ! sensorHandle.ShouldCaptureThisFrame)
             return;
 
         // Retrieve the object in the scene
@@ -250,8 +261,8 @@ public sealed class GraspTypeLabeler : CameraLabeler
         }
         if (countActiveGrasp != 1)
         {
-            Debug.LogError("SOMETHING WENT WRONG, THERE MUST BE EXACTLY ONE GRASP BUT " + countActiveGrasp + " FOUND. STOPPING EXECUTION . . .");
-            SimulationStopper.Stop();
+            StopSimulation("SOMETHING WENT WRONG, THERE MUST BE EXACTLY ONE GRASP BUT " + countActiveGrasp + " FOUND. STOPPING EXECUTION . . .");
+            return;
         }
 
         string instanceName = objInScene.name.Replace("(Clone)", "");
