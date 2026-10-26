@@ -612,7 +612,24 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                           + objInScene.name + "][" + graspToExecute.name + "]");
             }
 
-            // Check whether the camera-to-grasp straight line trajectory is collision-free
+            // Choose the point of the grasp to reach. It will randomly be the upper or the lower
+            // extremity (along z axis) of the grasp parallelepiped.
+            // targetPoint is used to determine the straight line
+            //  trajectory from the camera to targetPoint, which is one 
+            //  of the two extremity of the grasp parallelepiped
+            // targetFePoint is the point towards which the camera will
+            //  start performing, at a certain time, the flexion-extension
+            //  (which is the other extremity of the grasp parallelepiped)
+            bool reachUpPoint = samplerTargetPoint.Sample() > 0.5;
+            float halfHeight = graspToExecute.GetComponent<MeshFilter>().mesh.bounds.extents.z;
+
+            // Check whether the camera-to-grasp straight line trajectory is collision-free.
+            // The checked segment is the one actually travelled by the camera, i.e. from the
+            // initial position (moved backwards by REFERENCE_TO_CAMERA_OFFSET, see below) to
+            // the chosen extremity of the grasp parallelepiped. The segment is extended a bit
+            // beyond the extremity, such that it always enters the grasp parallelepiped (the
+            // extremity lies on its boundary): the first collider hit must be the grasp.
+            float LINECAST_END_MARGIN = 0.01f;
             RaycastHit hitInfo;
             Vector3 targetPoint = Vector3.zero;     // junk, it will be correctly initilized below
             int MAX_ATTEMPTS = 1000;
@@ -623,22 +640,25 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 // otherwise the Linecast would detect the past object 
                 Physics.SyncTransforms();
 
-                targetPoint = graspToExecute.transform.position;
-                // A little change to targetPoint: instead of moving towards
-                //  the central point of the grasp parallelepiped (as happens with
-                //  the line above), we will towards a random point onto
-                //  the grasp parallelepiped (as happens in the line below)
-                //targetPoint = GetRandomPointInsideCollider(graspToExecute.GetComponent<BoxCollider>());
-
-                if (! Physics.Linecast(wristCamera.transform.position, targetPoint, out hitInfo))
+                Vector3 targetUpPoint = graspToExecute.transform.TransformPoint(new Vector3(0f, 0f, -halfHeight));
+                Vector3 targetDownPoint = graspToExecute.transform.TransformPoint(new Vector3(0f, 0f, halfHeight));
+                if (reachUpPoint)
                 {
-                    Debug.LogError("Something went wrong: no one collision " +
-                                   "found. Stopping execution . . .");
-                    //Debug.DrawLine(wristCamera.transform.position, target.position, Color.green);
-                    // Stop execution
-                    SimulationStopper.Stop();
+                    targetPoint = targetUpPoint;
+                    targetFePoint = targetDownPoint;
                 }
                 else
+                {
+                    targetPoint = targetDownPoint;
+                    targetFePoint = targetUpPoint;
+                }
+
+                Vector3 direction = (targetPoint - wristCamera.transform.position).normalized;
+                Vector3 linecastStart = wristCamera.transform.position - direction * REFERENCE_TO_CAMERA_OFFSET;
+                Vector3 linecastEnd = targetPoint + direction * LINECAST_END_MARGIN;
+
+                bool isValid = false;
+                if (Physics.Linecast(linecastStart, linecastEnd, out hitInfo))
                 {
                     GameObject collidedObj = hitInfo.collider.gameObject;
                     // Take the parent of the parent (instead of the parent), since there
@@ -651,19 +671,22 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                     // If the collision happened with
                     // something different (e.g. another grasp, the object, etc.. the
                     // trajectory is not a valid trajectory
-                    if (collidedObj.name == graspToExecute.name & objInScene.name == parentOfCollidedObj.name)
-                    {
-                        //Debug.Log("VALID iteration for [" + collidedObj.name + "][" + parentOfCollidedObj.name + "]");
-                        break;
-                    }
-                    else
-                    { 
-                        // Invalid trajectory: sample another camera
-                        // position, object placement and rotation
-                        randomWristCameraPlacement();
-                        randomObjectPlacement(objInScene, graspToExecute);
-                        randomObjectRotation(objInScene, graspToExecute);
-                    }
+                    isValid = collidedObj.name == graspToExecute.name & objInScene.name == parentOfCollidedObj.name;
+                }
+
+                if (isValid)
+                {
+                    //Debug.Log("VALID iteration for [" + objInScene.name + "][" + graspToExecute.name + "]");
+                    break;
+                }
+                else
+                { 
+                    // Invalid trajectory (or the segment just grazed the grasp parallelepiped
+                    // without hitting it): sample another camera position, object placement 
+                    // and rotation
+                    randomWristCameraPlacement();
+                    randomObjectPlacement(objInScene, graspToExecute);
+                    randomObjectRotation(objInScene, graspToExecute);
                 }
             }
             if (i == MAX_ATTEMPTS)
@@ -726,38 +749,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             psAngle *= samplerPsPercentageRotation.Sample();
             psRotationStartingSampledValue = (float)Math.Round(psRotationStartingSampler.Sample(), 0);      // round to int
             psRotationDurationSampledValue = (float)Math.Round(psRotationDurationSampler.Sample(), 0);
-
-            // Choose the point of the grasp to reach. It will randomly be the upper or the lower
-            // extremity (along z axis) of the grasp parallelepiped
-            float halfHeight = graspToExecute.GetComponent<MeshFilter>().mesh.bounds.extents.z;
-            Vector3 targetUpPoint = graspToExecute.transform.TransformPoint(
-                //graspToExecute.transform.localPosition + new Vector3(0f, 0f, -halfHeight));
-                graspToExecute.transform.InverseTransformPoint(targetPoint) + new Vector3(0f, 0f, -halfHeight));
-            Vector3 targetDownPoint = graspToExecute.transform.TransformPoint(
-                //graspToExecute.transform.localPosition + new Vector3(0f, 0f, halfHeight));
-                graspToExecute.transform.InverseTransformPoint(targetPoint) + new Vector3(0f, 0f, halfHeight));
-
-            // targetPoint is used to determine the straight line
-            //  trajectory from the camera to targetPoint, which is one 
-            //  of the two extremity of the grasp parallelepiped
-            // targetFePoint is the point towards which the camera will
-            //  start performing, at a certain time, the flexion-extension
-            //  (which is the other extremity of the grasp parallelepiped)
-            
-            //Vector3 targetPoint;    
-            //Vector3 targetFePoint;  
-            
-            float sampledPoint = samplerTargetPoint.Sample();
-            if (sampledPoint > 0.5)        
-            {
-                targetPoint = targetUpPoint;
-                targetFePoint = targetDownPoint;
-            }
-            else
-            {
-                targetPoint = targetDownPoint;
-                targetFePoint = targetUpPoint;
-            }
 
             // Make wrist camera look at the target point to reach.
             wristCamera.transform.LookAt(targetPoint);
