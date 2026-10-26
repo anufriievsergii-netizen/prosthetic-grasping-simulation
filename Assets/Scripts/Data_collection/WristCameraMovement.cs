@@ -627,7 +627,10 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             //  start performing, at a certain time, the flexion-extension
             //  (which is the other extremity of the grasp parallelepiped)
             bool reachUpPoint = samplerTargetPoint.Sample() > 0.5;
-            float halfHeight = graspToExecute.GetComponent<MeshFilter>().mesh.bounds.extents.z;
+            // The extremities are taken from the BoxCollider (the same shape used by the
+            // collision check below), without assuming it is centered on the grasp origin
+            BoxCollider graspCollider = graspToExecute.GetComponent<BoxCollider>();
+            Vector3 halfHeightOffset = new Vector3(0f, 0f, graspCollider.size.z / 2f);
 
             // Check whether the camera-to-grasp straight line trajectory is collision-free.
             // The checked segment is the one actually travelled by the camera, i.e. from the
@@ -646,8 +649,8 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 // otherwise the Linecast would detect the past object 
                 Physics.SyncTransforms();
 
-                Vector3 targetUpPoint = graspToExecute.transform.TransformPoint(new Vector3(0f, 0f, -halfHeight));
-                Vector3 targetDownPoint = graspToExecute.transform.TransformPoint(new Vector3(0f, 0f, halfHeight));
+                Vector3 targetUpPoint = graspToExecute.transform.TransformPoint(graspCollider.center - halfHeightOffset);
+                Vector3 targetDownPoint = graspToExecute.transform.TransformPoint(graspCollider.center + halfHeightOffset);
                 if (reachUpPoint)
                 {
                     targetPoint = targetUpPoint;
