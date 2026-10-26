@@ -257,7 +257,9 @@ public sealed class GraspTypeLabeler : CameraLabeler
         string instanceName = objInScene.name.Replace("(Clone)", "");
         string objectName = instance2object[instanceName];
 
-        string textureName = objInScene.transform.Find("textured").GetComponent<Renderer>().material.name;
+        // Use sharedMaterial, since the material getter would instantiate a new copy 
+        // of the material (which is never destroyed)
+        string textureName = objInScene.transform.Find("textured").GetComponent<Renderer>().sharedMaterial.name;
 	    textureName = textureName.Replace(" (Instance)", "");        
         if (textureName == "material_0" || textureName == "material0")
         {
