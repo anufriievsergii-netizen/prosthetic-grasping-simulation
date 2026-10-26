@@ -200,6 +200,18 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         // at the end of each sequence we can restore it (if changed)
         private Material originalHandMaterial = null;
 
+        // Set when the simulation is being stopped. SimulationStopper.Stop() does not take
+        // effect immediately (e.g., in the Editor play mode ends at the end of the frame), 
+        // hence this flag is used to not execute the remaining code of this randomizer
+        private bool isStopped = false;
+
+        private void StopSimulation(string message)
+        {
+            Debug.LogError(message);
+            SimulationStopper.Stop();
+            isStopped = true;
+        }
+
 
         private void randomHandTransform()
         {
@@ -238,13 +250,13 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 }
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
-                    Debug.LogError("Hannes_ARM random hand transformation not implemented yet");
-                    SimulationStopper.Stop();
+                    StopSimulation("Hannes_ARM random hand transformation not implemented yet");
+                    return;
                 }
                 else
                 {
-                    Debug.LogError("Unknown hand model");
-                    SimulationStopper.Stop();
+                    StopSimulation("Unknown hand model");
+                    return;
                 }
 
                 hand.transform.localPosition = position;
@@ -266,13 +278,11 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 }
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
-                    Debug.LogError("Hannes_ARM random hand material not implemented yet");
-                    SimulationStopper.Stop();
+                    StopSimulation("Hannes_ARM random hand material not implemented yet");
                 }
                 else
                 {
-                    Debug.LogError("Unknown hand model");
-                    SimulationStopper.Stop();
+                    StopSimulation("Unknown hand model");
                 }
             }
         }
@@ -486,7 +496,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             int totalIterations = castedScenario.constants.iterationCount - castedScenario.constants.startIteration;
             if (objAndGraspPairs.Count * numIterationsPerGrasp != totalIterations)   
             {
-                Debug.LogError("Wrong value assigned in FixedLengthScenario for " +
+                StopSimulation("Wrong value assigned in FixedLengthScenario for " +
                                "startIteration and iterationCount fields: " +
                                "there are " + objAndGraspPairs.Count + 
                                " object-grasp pairs, each object-grasp pair is executed for " +
@@ -494,8 +504,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                                + objAndGraspPairs.Count * numIterationsPerGrasp +
                                ". However, the number of iterations declared " +
                                "in FixedLengthScenario is " + totalIterations);
-                // Stop execution
-                SimulationStopper.Stop();
             }
 
             // The sampler for object rotation around y axis 
@@ -548,13 +556,11 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             }
             else if (hand.name.Contains("Hannes_ARM"))
             {
-                Debug.LogError("Hannes_ARM range of values not implemented yet");
-                SimulationStopper.Stop();
+                StopSimulation("Hannes_ARM range of values not implemented yet");
             }
             else
             {
-                Debug.LogError("Unknown hand model");
-                SimulationStopper.Stop();
+                StopSimulation("Unknown hand model");
             }
 
             samplerApplyMaterialHand = new UniformSampler(0, 1);
@@ -586,10 +592,15 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// </summary>
         protected override void OnIterationStart()
         {
+            if (isStopped)
+                return;
+
             randomWristCameraPlacement();
 
             randomHandTransform();
             randomHandMaterial();
+            if (isStopped)
+                return;
 
             iterationsCounter++;
             // It indicates when to get a new object-grasp pair from the list. That is, when 
@@ -703,10 +714,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             }
             if (i == MAX_ATTEMPTS)
             {
-                Debug.LogError("INVALID iteration: no feasible camera-object pose " +
+                StopSimulation("INVALID iteration: no feasible camera-object pose " +
                                "found for [" + objInScene.name + "][" + graspToExecute.name + "]");
-                // Stop execution
-                SimulationStopper.Stop();
+                return;
             }
 
             // Compute pronation-supination angle
@@ -788,6 +798,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 
         protected override void OnUpdate()
         {
+            if (isStopped)
+                return;
+
             // Get the step value, i.e., how much to move the camera forward
             // Since we use a straight line trajectory and the direction of this 
             // line is the same as the z-axis direction of the camera frame,
@@ -830,6 +843,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 
         protected override void OnIterationEnd()
         {
+            if (isStopped)
+                return;
+
             // Deletes generated foreground object after each scenario iteration is complete
             m_GameObjectOneWayCache.ResetAllObjects();
 
@@ -852,13 +868,11 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 }
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
-                    Debug.LogError("Hannes_ARM restoring back initial material not implemented yet");
-                    SimulationStopper.Stop();
+                    StopSimulation("Hannes_ARM restoring back initial material not implemented yet");
                 }
                 else
                 {
-                    Debug.LogError("Unknown hand model");
-                    SimulationStopper.Stop();
+                    StopSimulation("Unknown hand model");
                 }
             }
 
