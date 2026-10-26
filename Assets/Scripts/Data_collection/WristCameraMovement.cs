@@ -730,6 +730,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 return;
             }
 
+            // Make wrist camera look at the target point to reach.
+            wristCamera.transform.LookAt(targetPoint);
+
             // Compute pronation-supination angle
             if (graspToExecute.name.Contains("[nops]"))
             {
@@ -738,9 +741,8 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             }
             else
             {
-                // Make the camera pointing at the center of the parallelepiped,
-                // in order to correctly compute the ps angle 
-                wristCamera.transform.LookAt(graspToExecute.transform);
+                // The camera is already looking at targetPoint, i.e. it has the orientation
+                // from which the pronation-supination will be performed
                 // The pronation-supination is a rotation around the camera z axis, hence
                 // the angle is measured within the plane orthogonal to that axis, and
                 // signed w.r.t. that axis. A positive psAngle means that a rotation of
@@ -782,9 +784,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             psAngle *= samplerPsPercentageRotation.Sample();
             psRotationStartingSampledValue = (float)Math.Round(psRotationStartingSampler.Sample(), 0);      // round to int
             psRotationDurationSampledValue = (float)Math.Round(psRotationDurationSampler.Sample(), 0);
-
-            // Make wrist camera look at the target point to reach.
-            wristCamera.transform.LookAt(targetPoint);
 
             // Sample the frame at which the camera will start performing the flexion-extension
             feRotationStartingSampledValue = (float)Math.Round(feRotationStartingSampler.Sample(), 0);
