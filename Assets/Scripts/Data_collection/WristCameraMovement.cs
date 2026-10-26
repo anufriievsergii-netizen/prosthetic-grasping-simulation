@@ -704,13 +704,17 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             BoxCollider graspCollider = graspToExecute.GetComponent<BoxCollider>();
             Vector3 halfHeightOffset = new Vector3(0f, 0f, graspCollider.size.z / 2f);
 
-            // Check whether the camera-to-grasp straight line trajectory is collision-free.
-            // The checked segment is the one actually travelled by the camera, i.e. from the
-            // initial position (moved backwards by REFERENCE_TO_CAMERA_OFFSET, see below) to
-            // the chosen extremity of the grasp parallelepiped. The segment is extended a bit
-            // beyond the extremity, such that it always enters the grasp parallelepiped (the
-            // extremity lies on its boundary): the first collider hit must be the grasp.
-            float LINECAST_END_MARGIN = 0.01f;
+            // Check whether the camera-object pose is valid, i.e.:
+            // (1) the grasp is visible from the camera: the line from the initial camera 
+            //     position to the center of the grasp parallelepiped must hit the grasp 
+            //     before anything else (e.g. another part of the object, the table, etc..)
+            // (2) the straight line trajectory actually travelled by the camera is
+            //     collision-free: from the initial position (moved backwards by 
+            //     REFERENCE_TO_CAMERA_OFFSET, see below) to where the camera stops, i.e. 
+            //     REFERENCE_TO_CAMERA_OFFSET before the chosen extremity of the grasp
+            //     parallelepiped. Only the grasp parallelepiped itself can be crossed.
+            // The extremity itself is not required to be visible, since it can lie inside
+            // the object (e.g. a grasp parallelepiped across the lid of a can)
             RaycastHit hitInfo;
             Vector3 targetPoint = Vector3.zero;     // junk, it will be correctly initilized below
             int MAX_ATTEMPTS = 1000;
@@ -735,15 +739,26 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 }
 
                 Vector3 direction = (targetPoint - wristCamera.transform.position).normalized;
-                Vector3 linecastStart = wristCamera.transform.position - direction * REFERENCE_TO_CAMERA_OFFSET;
-                Vector3 linecastEnd = targetPoint + direction * LINECAST_END_MARGIN;
+                Vector3 trajectoryStart = wristCamera.transform.position - direction * REFERENCE_TO_CAMERA_OFFSET;
+                Vector3 trajectoryEnd = targetPoint - direction * REFERENCE_TO_CAMERA_OFFSET;
 
-                // Check whether the collision happened with the desired grasp.
-                // If the collision happened with
-                // something different (e.g. another grasp, the object, the table, etc..) the
-                // trajectory is not a valid trajectory
-                bool isValid = Physics.Linecast(linecastStart, linecastEnd, out hitInfo)
+                // (1) The grasp is visible
+                bool isValid = Physics.Linecast(trajectoryStart, graspToExecute.transform.position, out hitInfo)
                                && hitInfo.collider.gameObject == graspToExecute;
+
+                // (2) The trajectory is collision-free
+                if (isValid)
+                {
+                    Vector3 trajectory = trajectoryEnd - trajectoryStart;
+                    foreach (RaycastHit hit in Physics.RaycastAll(trajectoryStart, trajectory.normalized, trajectory.magnitude))
+                    {
+                        if (hit.collider.gameObject != graspToExecute)
+                        {
+                            isValid = false;
+                            break;
+                        }
+                    }
+                }
 
                 if (isValid)
                 {
@@ -752,8 +767,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 }
                 else
                 { 
-                    // Invalid trajectory (or the segment just grazed the grasp parallelepiped
-                    // without hitting it): sample another camera position, object placement 
+                    // Invalid pose: sample another camera position, object placement 
                     // and rotation
                     randomWristCameraPlacement();
                     // The rotation must be set before the placement, which depends on it
