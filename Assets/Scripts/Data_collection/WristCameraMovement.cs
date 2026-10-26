@@ -147,6 +147,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         // We need to store the original material, such that 
         // at the end of each sequence we can restore it (if changed)
         private Material originalObjMaterial = null;
+        // The copy of the sampled material applied to the object (if any), such that
+        // the material asset itself is never modified. Destroyed at the end of each sequence
+        private Material sampledObjMaterialInstance = null;
 
         // Samplers for the objectmaterials (when applied to the object) to randomly 
         // change the metallic and smoothness properties (within a 
@@ -256,8 +259,10 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             {
                 if (hand.name.Contains("Arm02"))
                 {
-                    originalHandMaterial = hand.GetComponent<Renderer>().material;
-                    hand.GetComponent<Renderer>().material = materialsHand.Sample();
+                    // Use sharedMaterial, since the material getter would instantiate
+                    // a new copy of the material at each call
+                    originalHandMaterial = hand.GetComponent<Renderer>().sharedMaterial;
+                    hand.GetComponent<Renderer>().sharedMaterial = materialsHand.Sample();
                 }
                 else if (hand.name.Contains("Hannes_ARM"))
                 {
@@ -278,18 +283,23 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             float sampledFloat = samplerApplyMaterialObject.Sample();
             if (sampledFloat <= samplingRangeObjectMaterial)
             {
-                originalObjMaterial = instance.transform.Find("textured")
-                    .GetComponent<Renderer>().material;
+                // Use sharedMaterial, since the material getter would instantiate
+                // a new copy of the material at each call
+                Renderer objRenderer = instance.transform.Find("textured").GetComponent<Renderer>();
+                originalObjMaterial = objRenderer.sharedMaterial;
+                // Work on a copy of the sampled material, since its properties are 
+                // modified below and the material asset must not be changed. The name is 
+                // kept since the GraspTypeLabeler uses it
                 Material sampledMaterial = materialsObject.Sample();
-                instance.transform.Find("textured")
-                    .GetComponent<Renderer>().material = sampledMaterial;
+                sampledObjMaterialInstance = new Material(sampledMaterial) { name = sampledMaterial.name };
+                objRenderer.sharedMaterial = sampledObjMaterialInstance;
 
                 // Modify the metallic and smoothness of the material
                 float sampledMetallicValue = samplerObjectMetallicProperty.Sample();
                 float sampledSmoothnessValue = samplerObjectSmoothnessProperty.Sample();
-                sampledMaterial.SetFloat("_Metallic", 
+                sampledObjMaterialInstance.SetFloat("_Metallic", 
                                          objectMetallicBaseValue + sampledMetallicValue);
-                sampledMaterial.SetFloat("_Smoothness", 
+                sampledObjMaterialInstance.SetFloat("_Smoothness", 
                                          objectSmoothnessBaseValue + sampledSmoothnessValue);
             }
         }
@@ -461,10 +471,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             // where:
             // - idxObj is the index of the object in the prefabs list
             // - idxGraspInObj is the index of the grasp in the children hierarchy
-            // Furthermore, due to how the GraspTypeLabeler works, during the sequence
-            // all the grasps of all the objects must be deactivated, except the one
-            // corresponding to the label of that sequence. Hence deactivate all grasps
-            // here, they will be activated one at a time later
             objAndGraspPairs = new List<Tuple<int, int>>();
             GameObject[] objects = prefabs.categories.Select(element => element.Item1).ToArray();
             for (int idxObj = 0; idxObj < objects.Length; idxObj++)
@@ -472,7 +478,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 Transform children = objects[idxObj].transform.Find("textured");
                 for (int idxGraspInObj = 0; idxGraspInObj < children.childCount; idxGraspInObj++)
                 {
-                    children.GetChild(idxGraspInObj).gameObject.SetActive(false);
                     objAndGraspPairs.Add(Tuple.Create(idxObj, idxGraspInObj));
                 }
             }
@@ -602,6 +607,17 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             objInScene = m_GameObjectOneWayCache.GetOrInstantiate(idxObj);
             graspToExecute = objInScene.transform.Find("textured").GetChild(idxGraspInObj).gameObject;
 
+            // Due to how the GraspTypeLabeler works, during the sequence all the grasps 
+            // of the object must be deactivated, except the one corresponding to the label 
+            // of that sequence (the current iteration will be labeled with the active grasp
+            // child of the object). This is done on the instance in scene, such that the
+            // prefab assets are never modified
+            Transform grasps = objInScene.transform.Find("textured");
+            for (int idxGrasp = 0; idxGrasp < grasps.childCount; idxGrasp++)
+            {
+                grasps.GetChild(idxGrasp).gameObject.SetActive(idxGrasp == idxGraspInObj);
+            }
+
             // The rotation must be set before the placement, which depends on it
             randomObjectRotation(objInScene, graspToExecute);
             randomObjectPlacement(objInScene, graspToExecute);
@@ -610,10 +626,6 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 
             if (newBatch || iterationsCounter == 0)
             {
-                // Activate the grasp for the novel object-grasp pair. This is needed for 
-                // the GraspTypeLabeler, since the current iteration will be labeled with 
-                // the activate grasp child of the object.
-                graspToExecute.SetActive(true);
                 Debug.Log("[INFO] Starting sequences for [" 
                           + objInScene.name + "][" + graspToExecute.name + "]");
             }
@@ -818,21 +830,16 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 
         protected override void OnIterationEnd()
         {
-            if ((iterationsCounter + 1) % numIterationsPerGrasp == 0)
-            {
-                // If the sequences for the current object-grasp pair 
-                // are terminated, deactivate the grasp 
-                graspToExecute.SetActive(false);
-            }
-
             // Deletes generated foreground object after each scenario iteration is complete
             m_GameObjectOneWayCache.ResetAllObjects();
 
             // Re-assign the original material to the object, if changed
             if (originalObjMaterial != null)
             { 
-                objInScene.transform.Find("textured").GetComponent<Renderer>().material = originalObjMaterial;
+                objInScene.transform.Find("textured").GetComponent<Renderer>().sharedMaterial = originalObjMaterial;
                 originalObjMaterial = null;
+                Object.Destroy(sampledObjMaterialInstance);
+                sampledObjMaterialInstance = null;
             }
                 
             // Re-assign the original material to the hand, if changed
@@ -840,7 +847,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             {
                 if (hand.name.Contains("Arm02"))
                 {
-                    hand.GetComponent<Renderer>().material = originalHandMaterial;
+                    hand.GetComponent<Renderer>().sharedMaterial = originalHandMaterial;
                     originalHandMaterial = null;
                 }
                 else if (hand.name.Contains("Hannes_ARM"))
