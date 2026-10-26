@@ -659,22 +659,12 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 Vector3 linecastStart = wristCamera.transform.position - direction * REFERENCE_TO_CAMERA_OFFSET;
                 Vector3 linecastEnd = targetPoint + direction * LINECAST_END_MARGIN;
 
-                bool isValid = false;
-                if (Physics.Linecast(linecastStart, linecastEnd, out hitInfo))
-                {
-                    GameObject collidedObj = hitInfo.collider.gameObject;
-                    // Take the parent of the parent (instead of the parent), since there
-                    // is an intermediate child called textured (refer to the GameObject structure
-                    // at line 331 for more information on this)
-                    GameObject parentOfCollidedObj = collidedObj.transform.parent.gameObject
-                        .transform.parent.gameObject;
-
-                    // Check whether the collision happened with the desired grasp.
-                    // If the collision happened with
-                    // something different (e.g. another grasp, the object, etc.. the
-                    // trajectory is not a valid trajectory
-                    isValid = collidedObj.name == graspToExecute.name & objInScene.name == parentOfCollidedObj.name;
-                }
+                // Check whether the collision happened with the desired grasp.
+                // If the collision happened with
+                // something different (e.g. another grasp, the object, the table, etc..) the
+                // trajectory is not a valid trajectory
+                bool isValid = Physics.Linecast(linecastStart, linecastEnd, out hitInfo)
+                               && hitInfo.collider.gameObject == graspToExecute;
 
                 if (isValid)
                 {
