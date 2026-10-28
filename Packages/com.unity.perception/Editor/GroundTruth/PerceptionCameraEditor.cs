@@ -386,7 +386,7 @@ namespace UnityEditor.Perception.GroundTruth
                 var renderPipelineAsset = QualitySettings.GetRenderPipelineAssetAt(i) as HDRenderPipelineAsset;
                 CheckRenderPipelineAsset(renderPipelineAsset, $"Issue with HD Render Pipeline for quality level \"{QualitySettings.names[i]}\":\n", "\nConsider removing unnecessary quality levels");
             }
-            var hdRenderPipelineAsset = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset as UnityEngine.Rendering.HighDefinition.HDRenderPipelineAsset;
+            var hdRenderPipelineAsset = UnityEngine.Rendering.GraphicsSettings.defaultRenderPipeline as UnityEngine.Rendering.HighDefinition.HDRenderPipelineAsset;
             CheckRenderPipelineAsset(hdRenderPipelineAsset);
 
             var camera = perceptionCamera.gameObject.GetComponent<HDAdditionalCameraData>();
