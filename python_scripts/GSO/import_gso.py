@@ -89,6 +89,8 @@ def validate_object(obj):
         errors.append('missing category')
     if not obj.get('grasps'):
         errors.append('no grasps')
+    if obj.get('farthest_to') not in (None, 'left', 'right', 'front', 'back'):
+        errors.append('farthest_to must be one of left, right, front, back')
     for grasp in obj.get('grasps', []):
         if preshape(grasp['name']) is None:
             errors.append('unknown grasp type [{}] (known: {})'.format(
@@ -195,6 +197,8 @@ def cmd_add(args):
     obj = OrderedDict([('name', args.name), ('category', args.category)])
     if args.yaw:
         obj['yaw'] = args.yaw
+    if args.farthest_to:
+        obj['farthest_to'] = args.farthest_to
     obj['grasps'] = []
     for grasp in args.grasp:
         name, _, approach = grasp.rpartition(':')
@@ -313,6 +317,8 @@ def main():
     add.add_argument('--grasp', action='append', required=True,
                      help='NAME:APPROACH, e.g. "large_diameter[left][susd]:left". Approach: ' + ', '.join(APPROACHES))
     add.add_argument('--yaw', type=float, default=0, help='Rotation (degrees) around the vertical axis')
+    add.add_argument('--farthest-to', choices=['left', 'right', 'front', 'back'],
+                     help='Rotate the model such that its most protruding part (e.g. a mug handle) faces this side')
     add.set_defaults(func=cmd_add)
 
     list_ = subparsers.add_parser('list', help='List the manifest objects passing the filters')

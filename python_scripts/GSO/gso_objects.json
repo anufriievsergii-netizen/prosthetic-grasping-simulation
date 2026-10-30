@@ -2,7 +2,8 @@
   "_comment": [
     "Google Scanned Objects (https://app.gazebosim.org/GoogleResearch/fuel/collections/Scanned%20Objects%20by%20Google%20Research) to import as objects to grasp.",
     "name: the model name on Gazebo Fuel. category: the object category used in the labels (see GraspCatalog.instance2object for the YCB ones).",
-    "yaw: rotation (degrees, around the vertical axis) applied to the model before placing the grasps, e.g. to put the handle of a mug on the right.",
+    "yaw: rotation (degrees, around the vertical axis) applied to the model before placing the grasps.",
+    "farthest_to: left, right, front or back. Rotates the model around the vertical axis such that its most protruding part (e.g. the handle of a mug) faces that side.",
     "grasps: the grasp parallelepipeds. name: the grasp type and its tags, as in the YCB prefabs (e.g. large_diameter[left][susd]).",
     "approach: where the camera comes from, in the frame of the upright object: top, bottom, left (-z), right (+z), front (-x), back (+x).",
     "Optional: height (0..1, where along the object height a side grasp is placed, default 0.5), offset ([x, y, z] meters added to the grasp position),",
@@ -12,7 +13,7 @@
     {
       "name": "ACE_Coffee_Mug_Kristen_16_oz_cup",
       "category": "mug",
-      "yaw": 0,
+      "farthest_to": "right",
       "grasps": [
         {"name": "large_diameter[susd]", "approach": "left"},
         {"name": "sphere_4fingers[nops]", "approach": "top"},
@@ -22,7 +23,7 @@
     {
       "name": "Room_Essentials_Mug_White_Yellow",
       "category": "mug",
-      "yaw": 0,
+      "farthest_to": "right",
       "grasps": [
         {"name": "large_diameter[susd]", "approach": "left"},
         {"name": "sphere_4fingers[nops]", "approach": "top"},
@@ -32,7 +33,7 @@
     {
       "name": "Cole_Hardware_Mug_Classic_Blue",
       "category": "mug",
-      "yaw": 0,
+      "farthest_to": "right",
       "grasps": [
         {"name": "large_diameter[susd]", "approach": "left"},
         {"name": "sphere_4fingers[nops]", "approach": "top"},
@@ -42,7 +43,7 @@
     {
       "name": "Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White",
       "category": "mug",
-      "yaw": 0,
+      "farthest_to": "right",
       "grasps": [
         {"name": "large_diameter[susd]", "approach": "left"},
         {"name": "sphere_4fingers[nops]", "approach": "top"},
