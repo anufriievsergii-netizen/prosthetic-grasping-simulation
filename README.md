@@ -55,6 +55,25 @@ We introduce a synthetic dataset generation pipeline designed for vision-based p
 - [WARNING]: if you want to change settings, e.g., enable bounding box/semantic segmentation labeling or import your own objects, few settings need to be adjusted. These are not explained here for the sake of brevity, feel free to contact me (federico.vasile@iit.it) or open an issue and I will provide you all the instructions.
 - When the simulation is over, go on the `Hierarchy` tab and select `WristCamera`. In the `Inspector` tab search for `Latest Generated Dataset` and click on `Show folder` to locate the dataset folder.
 
+## Adding objects from Google Scanned Objects
+More training data can be generated with objects from [Google Scanned Objects](https://app.gazebosim.org/GoogleResearch/fuel/collections/Scanned%20Objects%20by%20Google%20Research) (GSO, 1033 household objects, CC BY 4.0). They are imported in the same format as the YCB objects: the model in `Assets/3Dmodels/GSO/<name>/google_16k` and the prefab, with the same structure as the YCB ones, in `Assets/Prefabs/GSO`.
+- The objects to import are listed, with their category and grasps, in `python_scripts/GSO/gso_objects.json`. Each grasp has a `name` (grasp type and tags, as the grasp parallelepipeds of the YCB prefabs, e.g. `large_diameter[left][susd]`) and an `approach` (`top`, `bottom`, `left`, `right`, `front`, `back`). A `[border]` tag places the object on the table border (e.g. to grasp a plate by its rim).
+- Find more objects and add them to the list:
+  ```
+  python3 python_scripts/GSO/import_gso.py search "mug|cup"
+  python3 python_scripts/GSO/import_gso.py add Cole_Hardware_Mug_Classic_Blue --category mug --farthest-to right \
+      --grasp "large_diameter[susd]:left" --grasp "sphere_4fingers[nops]:top" --grasp "prismatic_2fingers[susd]:right"
+  ```
+  `--farthest-to right` rotates the object such that its most protruding part (the handle of a mug) faces the `right` grasp.
+- Download the objects needed for training, selected by name, category, preshape or grasp type (`list` takes the same filters and shows the resulting object-grasp pairs per preshape):
+  ```
+  python3 python_scripts/GSO/import_gso.py download --preshapes pinch_3 --max-per-category 2
+  python3 python_scripts/GSO/import_gso.py download --categories mug dispenser
+  ```
+- In Unity, `Tools -> Grasp Objects -> Build GSO Prefabs` builds the prefabs. The grasp parallelepipeds are placed automatically on the object surface: check them in the prefab (they are inactive, enable them to see them) and adjust them if needed. Rebuilding a prefab overwrites the manual changes.
+- `Tools -> Grasp Objects -> Training Object Selector` selects the YCB and GSO objects and grasps to generate data for (by source, category, preshape and grasp type), shows the number of object-grasp pairs per preshape, and `Apply to Simulation Scenario` sets the prefabs, the preshape and grasp type filters of `WristCameraMovement`, `Num Iterations Per Grasp` and the matching `Iteration Count`. Save the scene to keep them.
+- The category of a GSO object is stored in the `GraspObjectInfo` component of its prefab, and is used as `object_name` in the labels. The GSO object names are not in the label configs (`IdLabelConfig`, `SemanticSegmentationLabelConfig`): add them if you enable the bounding box or segmentation labelers.
+
 ## Synthetic dataset generation with a Linux build
 A standalone build uses less GPU memory than the Editor and is the most reliable way to generate the full dataset.
 - Set the scenario values (`Iteration Count`, `Frames Per Iteration`, `Num Iterations Per Grasp`) in the `Data_collection` scene as described above and save the scene.
