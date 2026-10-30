@@ -67,7 +67,7 @@ The starter set below is included in the repository (models and prefabs). Other 
 python3 python_scripts/GSO/import_gso.py download        # the objects of the list not imported yet
 ```
 Then, in Unity:
-1. `Tools -> Grasp Objects -> Build GSO Prefabs`
+1. `Tools -> Grasp Objects -> Build GSO Prefabs` (or browse and add objects one by one with `Tools -> Grasp Objects -> GSO Browser`, see below)
 2. `Tools -> Grasp Objects -> Training Object Selector`: select the objects and grasps, click `Apply to Simulation Scenario` and save the scene.
 3. Click the play button (or make a Linux build, see below).
 
@@ -83,7 +83,19 @@ Then, in Unity:
 | small_tool | `Craftsman_Grip_Screwdriver_Phillips_Cushion`, `Diamond_Visions_Scissors_Red` | `prismatic_4fingers` |
 | big_tool | `OXO_Cookie_Spatula` | `prismatic_4fingers` |
 
-### Selecting and importing objects
+### Browsing the objects in Unity (GSO Browser)
+`Tools -> Grasp Objects -> GSO Browser` shows the whole GSO catalog, to look at the objects and decide which ones to add:
+- On the left, the list of the 1033 objects, filtered by text (`Search`, all the words must be in the name or description), GSO category and `Show` (all, added only, not added only). Added objects have a check mark and their category. Scroll through them with the Up/Down arrows.
+- On the right, the selected object: description, size, license and its 5 thumbnails from Gazebo Fuel (Left/Right arrows or click on them). Once added, a 3D preview of the prefab (drag to rotate) shows the grasp parallelepipeds as colored wireframes, with a line along their approach direction, and lists them with their preshape.
+- To add an object, set its `Category` (type it or pick a known one), optionally `Farthest part to` (e.g. `right` for the handle of a mug), and choose:
+  - `Add grasp boxes automatically` ticked: list the grasps (grasp type, side, `nops`/`usd`/`susd`/`border` tags, approach), or copy them from an object of the same category with `Copy grasps from`. The grasp parallelepipeds are placed as described in [Building the prefabs](#building-the-prefabs).
+  - unticked: the prefab is created without grasp parallelepipeds, to place them by hand (see [Placing the grasp boxes by hand](#placing-the-grasp-boxes-by-hand)).
+
+  Then click `Add to prefabs`: the object is added to `gso_objects.json`, downloaded, converted and its prefab built, and the 3D preview appears.
+- For an added object: `Update and rebuild prefab` applies the changes made in the window, `Open prefab` opens it in prefab mode, `Remove from project` removes it from `gso_objects.json` and deletes its model and prefab.
+- The window runs `import_gso.py` (set `Python executable` at the bottom if `python3` is not in the `PATH`). `Refresh catalog` downloads the catalog again from Gazebo Fuel. The output of the commands is shown below the form.
+
+### Selecting and importing objects from the command line
 - Search the GSO models (the catalog is cached in `~/.cache/gso_fuel_catalog.json`, use `--refresh` to update it):
   ```
   python3 python_scripts/GSO/import_gso.py search "mug|cup"
@@ -103,6 +115,7 @@ Then, in Unity:
   The preshape and grasp type filters select whole objects, and the pairs shown count all their grasps (e.g. `--preshapes pinch_3` selects 8 objects with 20 pairs, 8 of them `pinch_3`). To execute only the grasps of a preshape, use the preshape filter of the Training Object Selector (see below).
 
   Downloading an object already imported only updates its `grasp_spec.json` (e.g. after changing its grasps in the list); use `--force` to download it again.
+- Other commands: `add --manual-grasps` adds an object without grasps, to place them by hand in the prefab; `add --replace` replaces an object already in the list; `remove NAME` removes an object from the list and deletes its model and prefab (`--keep-files` to only remove it from the list).
 
 The fields of an object in `gso_objects.json`:
 
@@ -111,6 +124,7 @@ The fields of an object in `gso_objects.json`:
 | `name` | Model name on Gazebo Fuel |
 | `category` | Object category used in the labels, e.g. `mug`, `dispenser` (see `GraspCatalog.instance2object` for the YCB ones) |
 | `yaw` | Optional rotation (degrees) around the vertical axis |
+| `auto_grasps` | Optional, default `true`. `false`: the grasp parallelepipeds are placed by hand in the prefab, and `grasps` is empty |
 | `farthest_to` | Optional, `left`/`right`/`front`/`back`: rotates the object such that its most protruding part (e.g. the handle of a mug) faces that side |
 | `grasps[].name` | Grasp type and tags, as the grasp parallelepipeds of the YCB prefabs, e.g. `large_diameter[left][susd]`. Tags: `[left]`/`[right]` (object side), `[nops]` (no pronation-supination), `[usd]` (upside down), `[susd]` (randomly standing or upside down), `[border]` (object placed on the table border, e.g. to grasp a plate by its rim) |
 | `grasps[].approach` | Where the camera comes from, in the frame of the upright object: `top`, `bottom`, `left` (-z), `right` (+z), `front` (-x), `back` (+x) |
@@ -121,7 +135,14 @@ The fields of an object in `gso_objects.json`:
 ### Building the prefabs
 `Tools -> Grasp Objects -> Build GSO Prefabs` builds (or rebuilds) the prefab of every object in `Assets/3Dmodels/GSO`. The model is put upright and its bounding box centered on the prefab origin. Each grasp parallelepiped is placed where its approach line reaches the mesh surface, with its center 5 mm outside the surface, such that the visibility check of `WristCameraMovement` hits it before the object; for top and bottom grasps of hollow objects (e.g. a mug) it is placed on the rim. The prefabs are built in a preview scene (the open scene is not modified) and rebuilding a prefab keeps its GUID, hence the references in the scene.
 
-The placement is automatic: check the grasp parallelepipeds in the prefab (they are inactive, enable them to see them) and adjust them if needed. Rebuilding a prefab overwrites the manual changes.
+The placement is automatic: check the grasp parallelepipeds (in the 3D preview of the GSO Browser, or in the prefab) and adjust them if needed. Rebuilding a prefab with automatic grasps overwrites the manual changes.
+
+### Placing the grasp boxes by hand
+For the objects added without automatic grasp boxes (`auto_grasps: false`), open the prefab (`Open prefab` in the GSO Browser, or double-click it in `Assets/Prefabs/GSO`) and select the object, then:
+- `Tools -> Grasp Objects -> Add Grasp Box to Selected Object` adds a grasp parallelepiped under `textured`, on top of the object, with the components and transparent material of the YCB ones. Rename it with the grasp type and tags (e.g. `large_diameter[left][susd]`), then move, rotate and scale it: its z axis (blue) is the approach direction, pointing towards the object, and its x axis (red) is aligned with the palm width. Its center should be just outside the object surface, otherwise the camera-object poses are rejected by the visibility check.
+- `Tools -> Grasp Objects -> Show Grasp Boxes of Selected Object` / `Hide Grasp Boxes of Selected Object` shows or hides all of them. Hide them before saving the prefab: as in the YCB prefabs, they are stored inactive with the renderer disabled, and `WristCameraMovement` activates the one to execute.
+
+Rebuilding these prefabs (`Build GSO Prefabs` or `Update and rebuild prefab`) keeps the grasp parallelepipeds placed by hand.
 
 ### Selecting the training objects
 `Tools -> Grasp Objects -> Training Object Selector` lists the prefabs in `Assets/Prefabs/YCB` and `Assets/Prefabs/GSO` with their source, category and grasps:
