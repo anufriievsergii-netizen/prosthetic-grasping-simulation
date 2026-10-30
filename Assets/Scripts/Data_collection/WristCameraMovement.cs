@@ -165,6 +165,33 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         private int iterationsCounter = -1;
         public int numIterationsPerGrasp;
 
+        /// <summary>
+        /// If not empty, only the grasps labeled with one of these preshapes
+        /// (e.g. pinch_3) are executed, the other grasps of the objects are skipped
+        /// </summary>
+        [Tooltip("If not empty, only the grasps labeled with one of these preshapes (e.g. pinch_3) are executed.")]
+        public List<string> preshapeFilter = new List<string>();
+        /// <summary>
+        /// If not empty, only the grasps of one of these grasp types
+        /// (e.g. tripod) are executed, the other grasps of the objects are skipped
+        /// </summary>
+        [Tooltip("If not empty, only the grasps of one of these grasp types (e.g. tripod) are executed.")]
+        public List<string> graspTypeFilter = new List<string>();
+
+        /// <summary>
+        /// Whether a grasp parallelepiped passes preshapeFilter and graspTypeFilter
+        /// </summary>
+        public bool IsGraspSelected(string graspName)
+        {
+            if (preshapeFilter != null && preshapeFilter.Count > 0
+                && !preshapeFilter.Contains(GraspCatalog.GetPreshape(graspName)))
+                return false;
+            if (graspTypeFilter != null && graspTypeFilter.Count > 0
+                && !graspTypeFilter.Contains(GraspCatalog.ParseGraspName(graspName).graspType))
+                return false;
+            return true;
+        }
+
         private List<Tuple<int, int>> objAndGraspPairs;
 
         private GameObject graspToExecute;
@@ -521,6 +548,7 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             // where:
             // - idxObj is the index of the object in the prefabs list
             // - idxGraspInObj is the index of the grasp in the children hierarchy
+            // The grasps not passing preshapeFilter and graspTypeFilter are skipped
             objAndGraspPairs = new List<Tuple<int, int>>();
             GameObject[] objects = prefabs.categories.Select(element => element.Item1).ToArray();
             for (int idxObj = 0; idxObj < objects.Length; idxObj++)
@@ -528,8 +556,17 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 Transform children = objects[idxObj].transform.Find("textured");
                 for (int idxGraspInObj = 0; idxGraspInObj < children.childCount; idxGraspInObj++)
                 {
-                    objAndGraspPairs.Add(Tuple.Create(idxObj, idxGraspInObj));
+                    if (IsGraspSelected(children.GetChild(idxGraspInObj).name))
+                    {
+                        objAndGraspPairs.Add(Tuple.Create(idxObj, idxGraspInObj));
+                    }
                 }
+            }
+            if (objAndGraspPairs.Count == 0)
+            {
+                StopSimulation("No object-grasp pair to execute: check the prefabs list " +
+                               "and the preshape and grasp type filters");
+                return;
             }
 
             FixedLengthScenario castedScenario = (FixedLengthScenario)scenario;
