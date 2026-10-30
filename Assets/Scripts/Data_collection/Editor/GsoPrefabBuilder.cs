@@ -25,9 +25,16 @@ public static class GsoPrefabBuilder
     const string PREFABS_DIR = "Assets/Prefabs/GSO";
     // The transparent material of the YCB grasp parallelepipeds
     const string GRASP_MATERIAL_GUID = "6884d5a71463b004e84c57d4f8a92829";
-    // How much the grasp parallelepiped sticks out of the object surface, such that
-    // it is hit before the object by the visibility check of WristCameraMovement
-    const float OUTSIDE_SURFACE = 0.005f;
+    // How far outside the object surface the center of the grasp parallelepiped is.
+    // The visibility check of WristCameraMovement casts a line towards the center,
+    // which must hit the parallelepiped before the object: with the center inside
+    // the object, the line is blocked by the surrounding surface (e.g. the rim of a
+    // cap) for most of the camera positions
+    const float CENTER_OUTSIDE_SURFACE = 0.005f;
+    // For top and bottom grasps, if the approach line reaches the object more than
+    // this below its outermost part, the outermost part is used (e.g. a mug, where
+    // the line would reach its bottom instead of its rim)
+    const float MAX_DEPTH_TOP_GRASP = 0.01f;
 
     [Serializable]
     class GraspEntry
@@ -278,18 +285,15 @@ public static class GsoPrefabBuilder
             if (Mathf.Abs(Vector3.Dot(d, right)) <= halfX && Mathf.Abs(Vector3.Dot(d, up)) <= halfY)
                 surface = Mathf.Max(surface, distance);
         }
-        // Nothing there, or a hollow object (e.g. a mug seen from the top, where the
-        // line would reach its bottom): use the outermost part of the object instead
-        float extent = Mathf.Abs(Vector3.Dot(bounds.size, outward));
-        if (float.IsNegativeInfinity(surface) || outermost - surface > 0.5f * extent)
+        // Nothing there, or a hollow object seen from the top: use the outermost part
+        // of the object instead
+        if (float.IsNegativeInfinity(surface) || (!sideGrasp && outermost - surface > MAX_DEPTH_TOP_GRASP))
         {
-            Debug.LogWarning("[GSO] " + grasp.name + ": no surface around the approach line, " +
-                             "the grasp is placed on the outermost part of the object");
             surface = outermost;
         }
 
         Vector3 anchorOnPlane = anchor - Vector3.Dot(anchor, outward) * outward;
-        Vector3 center = anchorOnPlane + outward * (surface + OUTSIDE_SURFACE - size.z / 2f);
+        Vector3 center = anchorOnPlane + outward * (surface + CENTER_OUTSIDE_SURFACE);
 
         GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
         box.name = grasp.name;
