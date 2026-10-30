@@ -60,11 +60,11 @@ More training data can be generated with objects from [Google Scanned Objects](h
 - the model in `Assets/3Dmodels/GSO/<name>/google_16k/` (`textured.obj`, `textured.mtl`, `texture_map.png`), together with `grasp_spec.json` (category and grasps) and `metadata.pbtxt` (GSO metadata and license);
 - the prefab in `Assets/Prefabs/GSO/<name>.prefab`, with the same structure as the YCB prefabs: the root (`Labeling` and `GraspObjectInfo` components), the `textured` child (mesh and `MeshCollider`) and the grasp parallelepipeds as its inactive children (transparent material, renderer disabled, `BoxCollider`).
 
-The downloaded models and the prefabs are not part of the repository: they are generated with the steps below.
+The starter set below is included in the repository (models and prefabs). Other objects are added with the steps below.
 
 ### Quick start
 ```
-python3 python_scripts/GSO/import_gso.py download        # all the objects of the list (~130 MB)
+python3 python_scripts/GSO/import_gso.py download        # the objects of the list not imported yet
 ```
 Then, in Unity:
 1. `Tools -> Grasp Objects -> Build GSO Prefabs`
