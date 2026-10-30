@@ -164,75 +164,6 @@ public sealed class GraspTypeLabeler : CameraLabeler
         }
     }
 
-    private Dictionary<string, string> graspType2preshape = new Dictionary<string, string>()
-    {
-        {"adducted_thumb", "lateral_no3" },
-        {"large_diameter", "power_no3" },
-        {"small_diameter", "power_no3" },
-        {"medium_wrap", "power_no3" },
-        {"sphere_4fingers", "power_no3" },
-        {"power_sphere", "power_no3" },
-        {"power_disk", "power_no3"},
-        {"prismatic_4fingers", "pinch_no3" },
-        {"tripod", "pinch_3" },
-        {"prismatic_2fingers", "pinch_3" },
-
-        // TODO: are these below used?
-        //{"precision_sphere", "pinch_no3" },
-        {"precision_sphere", "power_no3" },
-        {"tip_pinch", "pinch_3"}
-    };
-
-    private Dictionary<string, string> instance2object = new Dictionary<string, string>()
-    {
-        {"019_pitcher_base", "dispenser" },
-        {"006_mustard_bottle", "dispenser" },
-        {"029_plate", "plate" },
-        {"026_sponge", "sponge" },
-        {"010_potted_meat_can", "can" },
-        {"025_mug", "mug" },
-        {"018_plum", "small_ball" },
-        {"055_baseball", "big_ball"},
-        {"031_spoon", "small_tool" },
-        {"011_banana", "long_fruit"},
-        {"021_bleach_cleanser", "dispenser"},
-        {"033_spatula", "big_tool"},
-        {"037_scissors",  "small_tool"},
-        {"040_large_marker", "small_tool"},
-        {"048_hammer", "big_tool"},
-        {"001_chips_can", "tube" },
-        {"red_wood_block", "small_cube" },
-
-
-        {"book", "book"},
-        {"book_opened", "book"},
-        {"bottle", "dispenser"},
-        {"bottle_prescription", "dispenser"},
-        {"cap", "small_tool"},
-        {"cap_2", "small_tool"},
-        {"cap_3", "small_tool"},
-        {"eraser", "small_tool"},
-        {"eraser_2", "small_tool"},
-        {"flashdrive", "small_tool"},
-        {"highlighter", "small_tool"},
-        {"notebook", "book"},
-        {"oriental_gadget", "small_tool"},
-        {"paintbrush", "big_tool"},
-        {"paintbrush_thin", "small_tool"},
-        {"paper_airplane", "small_tool"},
-        {"paper_punch", "small_tool"},
-        {"pen", "small_tool"},
-        {"pen_thin", "small_tool"},
-        {"pencil", "smalll_tool"},
-        {"pendrive", "small_tool"},
-        {"scotch", "small_tool"},
-        {"sharpner", "small_tool"},
-        {"tape_duct", "small_tool"},
-        {"toothbrush", "small_tool"},
-        {"wallet_closed", "wallet"},
-        {"wallet_opened", "wallet"},
-    };
-
     protected override void OnBeginRendering(ScriptableRenderContext scriptableRenderContext)
     {
         if (isStopped || ! sensorHandle.ShouldCaptureThisFrame)
@@ -289,7 +220,13 @@ public sealed class GraspTypeLabeler : CameraLabeler
         }
 
         string instanceName = objInScene.name.Replace("(Clone)", "");
-        string objectName = instance2object[instanceName];
+        string objectName = GraspCatalog.GetCategory(objInScene);
+        if (objectName == null)
+        {
+            StopSimulation("Unknown category for object [" + instanceName + "]: add it to " +
+                           "GraspCatalog.instance2object or add a GraspObjectInfo component to its prefab");
+            return;
+        }
 
         // Use sharedMaterial, since the material getter would instantiate a new copy 
         // of the material (which is never destroyed)
@@ -300,25 +237,21 @@ public sealed class GraspTypeLabeler : CameraLabeler
             textureName = "Original";
         }
         
-        string graspTypeName = objInScene.transform.Find("textured").GetChild(childIdx).gameObject.name;
-        bool noPronationSupination = graspTypeName.Contains("[nops]");
-        bool upsideDown = graspTypeName.Contains("[usd]");
-        bool samplingUpsideDown = graspTypeName.Contains("[susd]");
-        graspTypeName = graspTypeName.Replace("[nops]", "").Replace("[usd]", "").Replace("[susd]", "");
+        GraspCatalog.GraspName graspName = GraspCatalog.ParseGraspName(
+            objInScene.transform.Find("textured").GetChild(childIdx).gameObject.name);
+        string graspTypeName = graspName.graspType;
+        string objectSide = graspName.objectSide;
+        bool noPronationSupination = graspName.noPronationSupination;
+        bool upsideDown = graspName.upsideDown;
+        bool samplingUpsideDown = graspName.samplingUpsideDown;
 
-        string objectSide = "none";
-        if (graspTypeName.Contains("[left]"))
+        string preshapeName;
+        if (!GraspCatalog.graspType2preshape.TryGetValue(graspTypeName, out preshapeName))
         {
-            objectSide = "left";
-            graspTypeName = graspTypeName.Replace("[left]", "");
+            StopSimulation("Unknown grasp type [" + graspTypeName + "] for object [" + instanceName + "]: " +
+                           "add it to GraspCatalog.graspType2preshape");
+            return;
         }
-        else if (graspTypeName.Contains("[right]"))
-        {
-            objectSide = "right";
-            graspTypeName = graspTypeName.Replace("[right]", "");
-        }
-
-        string preshapeName = graspType2preshape[graspTypeName];
         
         //Report using the PerceptionCamera's SensorHandle if scheduled 
         GraspTypeMetaValues curSequenceValues = new GraspTypeMetaValues(
