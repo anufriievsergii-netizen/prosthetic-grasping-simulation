@@ -56,23 +56,97 @@ We introduce a synthetic dataset generation pipeline designed for vision-based p
 - When the simulation is over, go on the `Hierarchy` tab and select `WristCamera`. In the `Inspector` tab search for `Latest Generated Dataset` and click on `Show folder` to locate the dataset folder.
 
 ## Adding objects from Google Scanned Objects
-More training data can be generated with objects from [Google Scanned Objects](https://app.gazebosim.org/GoogleResearch/fuel/collections/Scanned%20Objects%20by%20Google%20Research) (GSO, 1033 household objects, CC BY 4.0). They are imported in the same format as the YCB objects: the model in `Assets/3Dmodels/GSO/<name>/google_16k` and the prefab, with the same structure as the YCB ones, in `Assets/Prefabs/GSO`.
-- The objects to import are listed, with their category and grasps, in `python_scripts/GSO/gso_objects.json`. Each grasp has a `name` (grasp type and tags, as the grasp parallelepipeds of the YCB prefabs, e.g. `large_diameter[left][susd]`) and an `approach` (`top`, `bottom`, `left`, `right`, `front`, `back`). A `[border]` tag places the object on the table border (e.g. to grasp a plate by its rim).
-- Find more objects and add them to the list:
+More training data can be generated with objects from [Google Scanned Objects](https://app.gazebosim.org/GoogleResearch/fuel/collections/Scanned%20Objects%20by%20Google%20Research) (GSO, 1033 household objects, CC BY 4.0, downloaded from Gazebo Fuel). They are imported in the same format as the YCB objects:
+- the model in `Assets/3Dmodels/GSO/<name>/google_16k/` (`textured.obj`, `textured.mtl`, `texture_map.png`), together with `grasp_spec.json` (category and grasps) and `metadata.pbtxt` (GSO metadata and license);
+- the prefab in `Assets/Prefabs/GSO/<name>.prefab`, with the same structure as the YCB prefabs: the root (`Labeling` and `GraspObjectInfo` components), the `textured` child (mesh and `MeshCollider`) and the grasp parallelepipeds as its inactive children (transparent material, renderer disabled, `BoxCollider`).
+
+The downloaded models and the prefabs are not part of the repository: they are generated with the steps below.
+
+### Quick start
+```
+python3 python_scripts/GSO/import_gso.py download        # all the objects of the list (~130 MB)
+```
+Then, in Unity:
+1. `Tools -> Grasp Objects -> Build GSO Prefabs`
+2. `Tools -> Grasp Objects -> Training Object Selector`: select the objects and grasps, click `Apply to Simulation Scenario` and save the scene.
+3. Click the play button (or make a Linux build, see below).
+
+### Starter set
+`python_scripts/GSO/gso_objects.json` comes with 14 objects of the existing categories, i.e. 28 object-grasp pairs (power_no3: 15, pinch_3: 8, pinch_no3: 3, lateral_no3: 2):
+
+| Category | Objects | Grasps |
+|:---|:---|:---|
+| mug | `ACE_Coffee_Mug_Kristen_16_oz_cup`, `Room_Essentials_Mug_White_Yellow`, `Cole_Hardware_Mug_Classic_Blue`, `Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White` | `large_diameter[susd]`, `sphere_4fingers[nops]`, `prismatic_2fingers[susd]` (handle) |
+| dispenser | `Marc_Anthony_Skip_Professional_Oil_of_Morocco_Conditioner_with_Argan_Oil`, `Lutein`, `5_HTP`, `CoQ10` | `large_diameter`, `tripod[nops]` (cap) |
+| tube | `Nestle_Nesquik_Chocolate_Powder_Flavored_Milk_Additive_109_Oz_Canister` | `sphere_4fingers[nops]`, `large_diameter[left][susd]`, `large_diameter[right][susd]` |
+| plate | `Threshold_Dinner_Plate_Square_Rim_White_Porcelain`, `Room_Essentials_Salad_Plate_Turquoise` | `adducted_thumb[border]` (rim) |
+| small_tool | `Craftsman_Grip_Screwdriver_Phillips_Cushion`, `Diamond_Visions_Scissors_Red` | `prismatic_4fingers` |
+| big_tool | `OXO_Cookie_Spatula` | `prismatic_4fingers` |
+
+### Selecting and importing objects
+- Search the GSO models (the catalog is cached in `~/.cache/gso_fuel_catalog.json`, use `--refresh` to update it):
   ```
   python3 python_scripts/GSO/import_gso.py search "mug|cup"
+  python3 python_scripts/GSO/import_gso.py search . --fuel-category "Bottles and Cans and Cups"
+  ```
+- Add a model to the list, with its category (used as `object_name` in the labels) and its grasps (`NAME:APPROACH`):
+  ```
   python3 python_scripts/GSO/import_gso.py add Cole_Hardware_Mug_Classic_Blue --category mug --farthest-to right \
       --grasp "large_diameter[susd]:left" --grasp "sphere_4fingers[nops]:top" --grasp "prismatic_2fingers[susd]:right"
   ```
-  `--farthest-to right` rotates the object such that its most protruding part (the handle of a mug) faces the `right` grasp.
-- Download the objects needed for training, selected by name, category, preshape or grasp type (`list` takes the same filters and shows the resulting object-grasp pairs per preshape):
+- List or download the objects needed for the training, selected by name (`--names`), category (`--categories`), preshape (`--preshapes`, objects having at least one grasp with that preshape), grasp type (`--grasp-types`) and `--max-per-category`. `list` shows the selected objects (`*` = already imported) and the resulting object-grasp pairs per preshape; `download --dry-run` does the same without downloading:
   ```
+  python3 python_scripts/GSO/import_gso.py list --preshapes pinch_3
   python3 python_scripts/GSO/import_gso.py download --preshapes pinch_3 --max-per-category 2
   python3 python_scripts/GSO/import_gso.py download --categories mug dispenser
   ```
-- In Unity, `Tools -> Grasp Objects -> Build GSO Prefabs` builds the prefabs. The grasp parallelepipeds are placed automatically on the object surface: check them in the prefab (they are inactive, enable them to see them) and adjust them if needed. Rebuilding a prefab overwrites the manual changes.
-- `Tools -> Grasp Objects -> Training Object Selector` selects the YCB and GSO objects and grasps to generate data for (by source, category, preshape and grasp type), shows the number of object-grasp pairs per preshape, and `Apply to Simulation Scenario` sets the prefabs, the preshape and grasp type filters of `WristCameraMovement`, `Num Iterations Per Grasp` and the matching `Iteration Count`. Save the scene to keep them.
-- The category of a GSO object is stored in the `GraspObjectInfo` component of its prefab, and is used as `object_name` in the labels. The GSO object names are not in the label configs (`IdLabelConfig`, `SemanticSegmentationLabelConfig`): add them if you enable the bounding box or segmentation labelers.
+  The preshape and grasp type filters select whole objects, and the pairs shown count all their grasps (e.g. `--preshapes pinch_3` selects 8 objects with 20 pairs, 8 of them `pinch_3`). To execute only the grasps of a preshape, use the preshape filter of the Training Object Selector (see below).
+
+  Downloading an object already imported only updates its `grasp_spec.json` (e.g. after changing its grasps in the list); use `--force` to download it again.
+
+The fields of an object in `gso_objects.json`:
+
+| Field | Description |
+|:---|:---|
+| `name` | Model name on Gazebo Fuel |
+| `category` | Object category used in the labels, e.g. `mug`, `dispenser` (see `GraspCatalog.instance2object` for the YCB ones) |
+| `yaw` | Optional rotation (degrees) around the vertical axis |
+| `farthest_to` | Optional, `left`/`right`/`front`/`back`: rotates the object such that its most protruding part (e.g. the handle of a mug) faces that side |
+| `grasps[].name` | Grasp type and tags, as the grasp parallelepipeds of the YCB prefabs, e.g. `large_diameter[left][susd]`. Tags: `[left]`/`[right]` (object side), `[nops]` (no pronation-supination), `[usd]` (upside down), `[susd]` (randomly standing or upside down), `[border]` (object placed on the table border, e.g. to grasp a plate by its rim) |
+| `grasps[].approach` | Where the camera comes from, in the frame of the upright object: `top`, `bottom`, `left` (-z), `right` (+z), `front` (-x), `back` (+x) |
+| `grasps[].height` | Optional, side grasps: where along the object height (0..1, default 0.5) |
+| `grasps[].offset` | Optional `[x, y, z]` (meters) added to the grasp position |
+| `grasps[].size` | Optional `[x, y, z]` (meters) parallelepiped size: x along the palm width, z along the approach direction. By default, a size per grasp type, similar to the YCB prefabs |
+
+### Building the prefabs
+`Tools -> Grasp Objects -> Build GSO Prefabs` builds (or rebuilds) the prefab of every object in `Assets/3Dmodels/GSO`. The model is put upright and its bounding box centered on the prefab origin. Each grasp parallelepiped is placed where its approach line reaches the mesh surface, with its center 5 mm outside the surface, such that the visibility check of `WristCameraMovement` hits it before the object; for top and bottom grasps of hollow objects (e.g. a mug) it is placed on the rim. The prefabs are built in a preview scene (the open scene is not modified) and rebuilding a prefab keeps its GUID, hence the references in the scene.
+
+The placement is automatic: check the grasp parallelepipeds in the prefab (they are inactive, enable them to see them) and adjust them if needed. Rebuilding a prefab overwrites the manual changes.
+
+### Selecting the training objects
+`Tools -> Grasp Objects -> Training Object Selector` lists the prefabs in `Assets/Prefabs/YCB` and `Assets/Prefabs/GSO` with their source, category and grasps:
+- filter them by source (YCB, GSO), category, preshape and grasp type, and include or exclude single objects;
+- the number of selected objects, the object-grasp pairs per preshape (to balance the data) and the resulting `Iteration Count` are shown;
+- `Apply to Simulation Scenario` sets, in the open scene, the `WristCameraMovement` prefabs list, its `Preshape Filter` and `Grasp Type Filter` (only the grasps passing them are executed, empty = all), `Num Iterations Per Grasp` and the matching `Iteration Count`. It can be undone (`Ctrl+Z`); save the scene to keep it. `Load selection from scenario` shows the current selection of the scenario.
+
+For instance, selecting only the `pinch_3` preshape gives 13 object-grasp pairs (8 GSO and 5 YCB), i.e. an `Iteration Count` of 650 with 50 iterations per grasp.
+
+### Validation
+The pose sampling and trajectory check of `WristCameraMovement` were simulated in edit mode on the `Data_collection` scene, with 300 random camera-object poses per object-grasp pair (the simulation stops when no valid pose is found in 1000 attempts):
+
+| Object-grasp pairs | Valid poses |
+|:---|:---|
+| GSO starter set (28 pairs) | 51-100% |
+| YCB prefabs (36 pairs, for reference) | 1-100% |
+
+The GSO prefabs are upright and textured with their original texture (labeled as `Original`, as the YCB ones). A full Play mode data collection with the GSO objects has not been run yet.
+
+### Limitations
+- The automatic grasp placement is a starting point: check it for every new object, especially for handles and objects with irregular shapes.
+- The pronation-supination direction is forced (supination) for some YCB object-grasp pairs, hard-coded by object name in `WristCameraMovement` (e.g. `large_diameter` of `025_mug`); this is not applied to the GSO objects.
+- The GSO object names are not in the label configs (`IdLabelConfig`, `SemanticSegmentationLabelConfig`): add them if you enable the bounding box or segmentation labelers.
+- The category of a GSO object is stored in the `GraspObjectInfo` component of its prefab; objects without it must be listed in `GraspCatalog.instance2object`, otherwise the simulation stops with an error.
+- Attribution: Google Scanned Objects, Google LLC, [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/) (the license of each object is in its `metadata.pbtxt`).
 
 ## Synthetic dataset generation with a Linux build
 A standalone build uses less GPU memory than the Editor and is the most reliable way to generate the full dataset.
