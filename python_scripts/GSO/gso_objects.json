@@ -125,6 +125,14 @@
       "grasps": [
         {"name": "prismatic_4fingers", "approach": "top"}
       ]
+    },
+    {
+      "name": "Hilary",
+      "category": "shoes",
+      "grasps": [
+        {"name": "tripod", "approach": "top"},
+        {"name": "large_diameter", "approach": "left"}
+      ]
     }
   ]
 }
