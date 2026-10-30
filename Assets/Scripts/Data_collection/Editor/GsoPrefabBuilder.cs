@@ -18,6 +18,8 @@ using UnityEngine.SceneManagement;
 /// The grasp parallelepipeds are placed onto the mesh surface according to the
 /// grasp_spec.json of each object. They are a starting point: check them in the
 /// prefab and adjust them by hand if needed (rebuilding the prefab overwrites them).
+/// For the objects with auto_grasps false, the grasp parallelepipeds are added by hand
+/// (Tools -> Grasp Objects -> Add Grasp Box to Selected Object) and rebuilding keeps them.
 /// </summary>
 public static class GsoPrefabBuilder
 {
@@ -53,6 +55,9 @@ public static class GsoPrefabBuilder
         public string category;
         public float yaw;
         public string farthest_to;
+        // When false, the grasp parallelepipeds are placed by hand in the prefab, and
+        // rebuilding the prefab keeps them
+        public bool auto_grasps = true;
         public GraspEntry[] grasps;
     }
 
@@ -139,10 +144,10 @@ public static class GsoPrefabBuilder
         Material material = modelAssets.OfType<Material>().FirstOrDefault();
         if (mesh == null || material == null)
             throw new Exception("Mesh or material not found in " + modelPath);
-        if (spec.grasps == null || spec.grasps.Length == 0)
+        if (spec.auto_grasps && (spec.grasps == null || spec.grasps.Length == 0))
             throw new Exception("No grasp in " + specPath);
-        Material graspMaterial = AssetDatabase.LoadAssetAtPath<Material>(
-            AssetDatabase.GUIDToAssetPath(GRASP_MATERIAL_GUID));
+        Material graspMaterial = GraspMaterial();
+        string prefabPath = PrefabPath(spec.name);
 
         // GSO models are z-up (as the YCB ones), the Unity frame is y-up
         Quaternion meshRotation = Quaternion.Euler(0f, spec.yaw, 0f) * Quaternion.Euler(-90f, 0f, 0f);
@@ -189,13 +194,32 @@ public static class GsoPrefabBuilder
             textured.AddComponent<MeshRenderer>().sharedMaterial = material;
             textured.AddComponent<MeshCollider>().sharedMesh = mesh;
 
-            foreach (GraspEntry grasp in spec.grasps)
+            if (spec.auto_grasps)
             {
-                AddGrasp(textured.transform, grasp, vertices, bounds, graspMaterial);
+                foreach (GraspEntry grasp in spec.grasps)
+                {
+                    AddGrasp(textured.transform, grasp, vertices, bounds, graspMaterial);
+                }
+            }
+            else
+            {
+                // Keep the grasp parallelepipeds placed by hand in the existing prefab
+                GameObject existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                Transform existingTextured = existing == null ? null : existing.transform.Find("textured");
+                if (existingTextured != null)
+                {
+                    foreach (Transform grasp in existingTextured)
+                    {
+                        GameObject copy = UnityEngine.Object.Instantiate(grasp.gameObject, textured.transform, false);
+                        copy.name = grasp.name;
+                        copy.transform.localPosition = grasp.localPosition;
+                        copy.transform.localRotation = grasp.localRotation;
+                        copy.transform.localScale = grasp.localScale;
+                    }
+                }
             }
 
             Directory.CreateDirectory(PREFABS_DIR);
-            string prefabPath = PREFABS_DIR + "/" + spec.name + ".prefab";
             // Saving over an existing prefab keeps its GUID, hence the references to it
             PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             return prefabPath;
@@ -203,6 +227,98 @@ public static class GsoPrefabBuilder
         finally
         {
             EditorSceneManager.ClosePreviewScene(previewScene);
+        }
+    }
+
+    public static string PrefabPath(string name)
+    {
+        return PREFABS_DIR + "/" + name + ".prefab";
+    }
+
+    static Material GraspMaterial()
+    {
+        return AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(GRASP_MATERIAL_GUID));
+    }
+
+    /// <summary>
+    /// Create a grasp parallelepiped as a child of textured, with the components of the
+    /// YCB ones. Position and rotation are in the frame of the parent of textured (the
+    /// object root)
+    /// </summary>
+    static GameObject CreateGraspBox(Transform textured, string name, Vector3 position, Quaternion rotation,
+                                     Vector3 size, Material graspMaterial)
+    {
+        GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        box.name = name;
+        box.transform.SetParent(textured.parent, false);
+        box.transform.localPosition = position;
+        box.transform.localRotation = rotation;
+        box.transform.localScale = size;
+        box.transform.SetParent(textured, true);
+        box.GetComponent<Renderer>().sharedMaterial = graspMaterial;
+        return box;
+    }
+
+    // The textured child of the selected object (or of one of its parents)
+    static Transform SelectedTextured()
+    {
+        for (Transform t = Selection.activeTransform; t != null; t = t.parent)
+        {
+            if (t.name == "textured")
+                return t;
+            Transform textured = t.Find("textured");
+            if (textured != null)
+                return textured;
+        }
+        return null;
+    }
+
+    [MenuItem("Tools/Grasp Objects/Add Grasp Box to Selected Object")]
+    static void AddGraspBoxToSelected()
+    {
+        Transform textured = SelectedTextured();
+        Bounds bounds = textured.GetComponent<Renderer>().bounds;
+        // On top of the object, approached from the top: move, rotate (z axis = approach
+        // direction, x axis = palm width), scale and rename it (e.g. tripod[nops])
+        Transform root = textured.parent;
+        Vector3 position = root.InverseTransformPoint(new Vector3(bounds.center.x, bounds.max.y, bounds.center.z));
+        GameObject box = CreateGraspBox(textured, "tripod[nops]", position,
+                                        Quaternion.LookRotation(Vector3.down, Vector3.forward),
+                                        new Vector3(0.03f, 0.02f, 0.03f), GraspMaterial());
+        Undo.RegisterCreatedObjectUndo(box, "Add grasp box");
+        Selection.activeGameObject = box;
+    }
+
+    [MenuItem("Tools/Grasp Objects/Add Grasp Box to Selected Object", true)]
+    [MenuItem("Tools/Grasp Objects/Show Grasp Boxes of Selected Object", true)]
+    [MenuItem("Tools/Grasp Objects/Hide Grasp Boxes of Selected Object", true)]
+    static bool HasSelectedTextured()
+    {
+        return SelectedTextured() != null;
+    }
+
+    // The grasp parallelepipeds are stored inactive and with the renderer disabled,
+    // WristCameraMovement activates the one to execute at runtime
+    [MenuItem("Tools/Grasp Objects/Show Grasp Boxes of Selected Object")]
+    static void ShowGraspBoxes()
+    {
+        SetGraspBoxesVisible(SelectedTextured(), true);
+    }
+
+    [MenuItem("Tools/Grasp Objects/Hide Grasp Boxes of Selected Object")]
+    static void HideGraspBoxes()
+    {
+        SetGraspBoxesVisible(SelectedTextured(), false);
+    }
+
+    static void SetGraspBoxesVisible(Transform textured, bool visible)
+    {
+        foreach (Transform grasp in textured)
+        {
+            Renderer renderer = grasp.GetComponent<Renderer>();
+            Undo.RecordObjects(new UnityEngine.Object[] { grasp.gameObject, renderer }, "Show grasp boxes");
+            renderer.enabled = visible;
+            grasp.gameObject.SetActive(visible);
         }
     }
 
@@ -295,18 +411,11 @@ public static class GsoPrefabBuilder
         Vector3 anchorOnPlane = anchor - Vector3.Dot(anchor, outward) * outward;
         Vector3 center = anchorOnPlane + outward * (surface + CENTER_OUTSIDE_SURFACE);
 
-        GameObject box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        box.name = grasp.name;
         // Positions and directions above are in the prefab root frame, which is
         // the parent of textured
-        box.transform.SetParent(textured.parent, false);
-        box.transform.localPosition = center;
-        box.transform.localRotation = Quaternion.LookRotation(forward, up);
-        box.transform.localScale = size;
-        box.transform.SetParent(textured, true);
-        Renderer renderer = box.GetComponent<Renderer>();
-        renderer.sharedMaterial = graspMaterial;
-        renderer.enabled = false;
+        GameObject box = CreateGraspBox(textured, grasp.name, center, Quaternion.LookRotation(forward, up),
+                                        size, graspMaterial);
+        box.GetComponent<Renderer>().enabled = false;
         box.SetActive(false);
     }
 }
