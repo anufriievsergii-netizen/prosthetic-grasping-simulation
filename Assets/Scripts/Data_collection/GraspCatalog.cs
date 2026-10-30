@@ -9,6 +9,7 @@ using UnityEngine;
 /// - [nops]: no pronation-supination is performed
 /// - [usd]: the object is put upside down
 /// - [susd]: the object is randomly put standing or upside down
+/// - [border]: the object is placed on the border of the table
 /// </summary>
 public static class GraspCatalog
 {
@@ -106,6 +107,7 @@ public static class GraspCatalog
         public bool noPronationSupination;
         public bool upsideDown;
         public bool samplingUpsideDown;
+        public bool onTableBorder;
     }
 
     /// <summary>
@@ -118,9 +120,10 @@ public static class GraspCatalog
             noPronationSupination = name.Contains("[nops]"),
             upsideDown = name.Contains("[usd]"),
             samplingUpsideDown = name.Contains("[susd]"),
+            onTableBorder = name.Contains("[border]"),
             objectSide = "none"
         };
-        name = name.Replace("[nops]", "").Replace("[usd]", "").Replace("[susd]", "");
+        name = name.Replace("[nops]", "").Replace("[usd]", "").Replace("[susd]", "").Replace("[border]", "");
 
         if (name.Contains("[left]"))
         {

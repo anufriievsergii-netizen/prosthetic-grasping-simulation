@@ -359,8 +359,10 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             float sampleZ = samplerZobjectPlacement.Sample();
 
             // ..but, regarding some objects, set a fixed x value
-            // in order to put the object on the table border
-	        if (instanceToPlace.name.Contains("048_hammer")
+            // in order to put the object on the table border. Besides the objects
+            // listed here, it is done for the grasps having the [border] tag
+	        if (GraspCatalog.ParseGraspName(graspToExecute.name).onTableBorder
+                || instanceToPlace.name.Contains("048_hammer")
 	            || instanceToPlace.name.Contains("029_plate")
                 || (instanceToPlace.name.Contains("026_sponge")
                     && graspToExecute.name.Contains("adducted_thumb"))
