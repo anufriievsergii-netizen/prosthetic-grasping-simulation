@@ -41,6 +41,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 MANIFEST_PATH = os.path.join(SCRIPT_DIR, 'gso_objects.json')
 MODELS_DIR = os.path.join(REPO_DIR, 'Assets', '3Dmodels', 'GSO')
+PREFABS_DIR = os.path.join(REPO_DIR, 'Assets', 'Prefabs', 'GSO')
 GRASP_CATALOG_PATH = os.path.join(REPO_DIR, 'Assets', 'Scripts', 'Data_collection', 'GraspCatalog.cs')
 # The catalog of the GSO models is cached here, since it takes ~1 minute to fetch it
 CATALOG_CACHE_PATH = os.path.join(os.path.expanduser('~'), '.cache', 'gso_fuel_catalog.json')
@@ -78,17 +79,21 @@ def load_manifest():
 
 
 def save_manifest(manifest):
+    text = json.dumps(manifest, indent=2)
+    # Keep the objects having only scalar values (i.e. the grasps) on one line
+    text = re.sub(r'\{\n((?:[ ]+"[^"\n]+": (?:"[^"\n]*"|[^\n\[\]{}"]+),?\n)+)[ ]*\}',
+                  lambda m: '{' + ' '.join(line.strip() for line in m.group(1).splitlines()) + '}', text)
     with open(MANIFEST_PATH, 'w') as f:
-        json.dump(manifest, f, indent=2)
-        f.write('\n')
+        f.write(text + '\n')
 
 
 def validate_object(obj):
     errors = []
     if not obj.get('category'):
         errors.append('missing category')
-    if not obj.get('grasps'):
-        errors.append('no grasps')
+    # Without automatic grasps, the grasp parallelepipeds are added by hand in the prefab
+    if obj.get('auto_grasps', True) and not obj.get('grasps'):
+        errors.append('no grasps (use manual grasps to add them by hand in the prefab)')
     if obj.get('farthest_to') not in (None, 'left', 'right', 'front', 'back'):
         errors.append('farthest_to must be one of left, right, front, back')
     for grasp in obj.get('grasps', []):
@@ -128,12 +133,13 @@ def print_summary(objects):
     pairs = Counter()
     for obj in objects:
         imported = os.path.isfile(os.path.join(MODELS_DIR, obj['name'], 'grasp_spec.json'))
-        print('{} {:<75} {:<12} {}'.format(
-            '*' if imported else ' ', obj['name'], obj['category'],
-            ', '.join('{} ({})'.format(g['name'], preshape(g['name'])) for g in obj['grasps'])))
+        grasps = ', '.join('{} ({})'.format(g['name'], preshape(g['name'])) for g in obj['grasps'])
+        if not obj.get('auto_grasps', True):
+            grasps = 'grasps placed by hand in the prefab'
+        print('{} {:<75} {:<12} {}'.format('*' if imported else ' ', obj['name'], obj['category'], grasps))
         for g in obj['grasps']:
             pairs[preshape(g['name'])] += 1
-    print('\n{} objects, {} object-grasp pairs ({}). * = already imported'.format(
+    print('\n{} objects, {} object-grasp pairs placed automatically ({}). * = already imported'.format(
         len(objects), sum(pairs.values()),
         ', '.join('{}: {}'.format(k, v) for k, v in sorted(pairs.items()))))
 
@@ -188,8 +194,9 @@ def cmd_search(args):
 
 def cmd_add(args):
     manifest = load_manifest()
-    if any(o['name'] == args.name for o in manifest['objects']):
-        sys.exit(args.name + ' is already in the manifest, edit ' + MANIFEST_PATH)
+    existing = [i for i, o in enumerate(manifest['objects']) if o['name'] == args.name]
+    if existing and not args.replace:
+        sys.exit(args.name + ' is already in the manifest, use --replace or edit ' + MANIFEST_PATH)
     try:
         fetch_json('{}/{}/models/{}'.format(FUEL_URL, FUEL_OWNER, urllib.parse.quote(args.name)))
     except urllib.error.HTTPError:
@@ -199,8 +206,10 @@ def cmd_add(args):
         obj['yaw'] = args.yaw
     if args.farthest_to:
         obj['farthest_to'] = args.farthest_to
+    if args.manual_grasps:
+        obj['auto_grasps'] = False
     obj['grasps'] = []
-    for grasp in args.grasp:
+    for grasp in args.grasp or []:
         name, _, approach = grasp.rpartition(':')
         if not name:
             sys.exit('--grasp must be NAME:APPROACH, e.g. "large_diameter[left]:left"')
@@ -208,9 +217,38 @@ def cmd_add(args):
     errors = validate_object(obj)
     if errors:
         sys.exit('Invalid object: ' + '; '.join(errors))
-    manifest['objects'].append(obj)
+    if existing:
+        manifest['objects'][existing[0]] = obj
+    else:
+        manifest['objects'].append(obj)
     save_manifest(manifest)
-    print('Added ' + args.name)
+    # Keep the imported object in sync with the manifest
+    if os.path.isdir(os.path.join(MODELS_DIR, args.name)):
+        write_grasp_spec(obj)
+    print(('Replaced ' if existing else 'Added ') + args.name)
+
+
+def remove_asset(path):
+    # Together with its Unity .meta file
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    elif os.path.isfile(path):
+        os.remove(path)
+    if os.path.isfile(path + '.meta'):
+        os.remove(path + '.meta')
+
+
+def cmd_remove(args):
+    manifest = load_manifest()
+    objects = [o for o in manifest['objects'] if o['name'] != args.name]
+    if len(objects) != len(manifest['objects']):
+        manifest['objects'] = objects
+        save_manifest(manifest)
+        print('Removed {} from the manifest'.format(args.name))
+    if not args.keep_files:
+        remove_asset(os.path.join(MODELS_DIR, args.name))
+        remove_asset(os.path.join(PREFABS_DIR, args.name + '.prefab'))
+        print('Deleted the model and the prefab of ' + args.name)
 
 
 def cmd_list(args):
@@ -314,12 +352,20 @@ def main():
     add = subparsers.add_parser('add', help='Add a GSO model to the manifest')
     add.add_argument('name', help='Model name on Gazebo Fuel')
     add.add_argument('--category', required=True, help='Object category used in the labels, e.g. mug')
-    add.add_argument('--grasp', action='append', required=True,
+    add.add_argument('--grasp', action='append',
                      help='NAME:APPROACH, e.g. "large_diameter[left][susd]:left". Approach: ' + ', '.join(APPROACHES))
+    add.add_argument('--manual-grasps', action='store_true',
+                     help='Do not place the grasp parallelepipeds automatically: they are added by hand in the prefab')
+    add.add_argument('--replace', action='store_true', help='Replace the object if already in the manifest')
     add.add_argument('--yaw', type=float, default=0, help='Rotation (degrees) around the vertical axis')
     add.add_argument('--farthest-to', choices=['left', 'right', 'front', 'back'],
                      help='Rotate the model such that its most protruding part (e.g. a mug handle) faces this side')
     add.set_defaults(func=cmd_add)
+
+    remove = subparsers.add_parser('remove', help='Remove an object from the manifest, with its model and prefab')
+    remove.add_argument('name')
+    remove.add_argument('--keep-files', action='store_true', help='Only remove it from the manifest')
+    remove.set_defaults(func=cmd_remove)
 
     list_ = subparsers.add_parser('list', help='List the manifest objects passing the filters')
     add_filter_args(list_)
