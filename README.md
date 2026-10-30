@@ -138,11 +138,25 @@ The fields of an object in `gso_objects.json`:
 The placement is automatic: check the grasp parallelepipeds (in the 3D preview of the GSO Browser, or in the prefab) and adjust them if needed. Rebuilding a prefab with automatic grasps overwrites the manual changes.
 
 ### Placing the grasp boxes by hand
-For the objects added without automatic grasp boxes (`auto_grasps: false`), open the prefab (`Open prefab` in the GSO Browser, or double-click it in `Assets/Prefabs/GSO`) and select the object, then:
-- `Tools -> Grasp Objects -> Add Grasp Box to Selected Object` adds a grasp parallelepiped under `textured`, on top of the object, with the components and transparent material of the YCB ones. Rename it with the grasp type and tags (e.g. `large_diameter[left][susd]`), then move, rotate and scale it: its z axis (blue) is the approach direction, pointing towards the object, and its x axis (red) is aligned with the palm width. Its center should be just outside the object surface, otherwise the camera-object poses are rejected by the visibility check.
-- `Tools -> Grasp Objects -> Show Grasp Boxes of Selected Object` / `Hide Grasp Boxes of Selected Object` shows or hides all of them. Hide them before saving the prefab: as in the YCB prefabs, they are stored inactive with the renderer disabled, and `WristCameraMovement` activates the one to execute.
+A grasp parallelepiped can be added by hand to any object prefab, YCB or GSO (any prefab with a `textured` child):
+1. Open the prefab in prefab mode: double-click it in `Assets/Prefabs/YCB` or `Assets/Prefabs/GSO`, or `Open prefab` in the GSO Browser.
+2. Select the object (or its `textured` child) and `Tools -> Grasp Objects -> Show Grasp Boxes of Selected Object` to see the grasp parallelepipeds it already has.
+3. `Tools -> Grasp Objects -> Add Grasp Box to Selected Object` adds a grasp parallelepiped named `tripod[nops]` under `textured`, on top of the object and approached from the top, with the components and transparent material of the YCB ones.
+4. Move, rotate and scale it (with the gizmo in `Local` mode):
+   - its z axis (blue) is the approach direction, pointing towards the object;
+   - its x axis (red) is aligned with the palm width;
+   - its center should be just outside the object surface (about 5 mm), otherwise the camera-object poses are rejected by the visibility check.
+5. Rename it with the grasp type and tags, `type[left|right][nops][usd][susd][border]` (e.g. `large_diameter[left]`, `prismatic_2fingers[nops][usd]`). The grasp type must be in `graspType2preshape` of `GraspCatalog.cs`, otherwise the simulation stops with an error.
+6. `Tools -> Grasp Objects -> Hide Grasp Boxes of Selected Object` before saving the prefab: as in the YCB prefabs, they are stored inactive with the renderer disabled, and `WristCameraMovement` activates the one to execute.
+7. Save the prefab.
 
-Rebuilding these prefabs (`Build GSO Prefabs` or `Update and rebuild prefab`) keeps the grasp parallelepipeds placed by hand.
+The YCB prefabs are never rebuilt, so the grasp parallelepipeds added to them are kept. For the GSO objects:
+- Objects with hand-placed grasps (`auto_grasps: false`): rebuilding the prefab (`Build GSO Prefabs` or `Update and rebuild prefab`) keeps all the grasp parallelepipeds in it.
+- Objects with automatic grasps (`auto_grasps: true`, the default): rebuilding the prefab places the grasp parallelepipeds again from `gso_objects.json` and **drops the ones added by hand**. Either add the grasp to the object's list in the GSO Browser (it is then placed automatically), or switch the object to hand-placed grasps, keeping the automatic ones already in the prefab: untick `Add grasp boxes automatically` in the GSO Browser and click `Update and rebuild prefab`, or
+
+  ```bash
+  python python_scripts/GSO/import_gso.py add NAME --category CATEGORY --manual-grasps --replace
+  ```
 
 ### Selecting the training objects
 `Tools -> Grasp Objects -> Training Object Selector` lists the prefabs in `Assets/Prefabs/YCB` and `Assets/Prefabs/GSO` with their source, category and grasps:
