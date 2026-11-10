@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine.Perception.Randomization.Parameters;
 using UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers.Tags;
 using UnityEngine.Perception.Randomization.Samplers;
@@ -24,9 +25,9 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// A float value between 0 and 1. The higher the value, the more likely it is
         /// that a material will be applied to the table
         public float samplingRangeMaterial;
-        // We need to store the original material, such that 
-        // at the end of each iteration we can restore it (if changed)
-        private Material originalObjMaterial = null;
+        // The renderers whose material was replaced in this iteration, with their original
+        // material, such that it is restored at the end of the iteration
+        private readonly List<(Renderer renderer, Material original)> replaced = new();
 
         protected override void OnAwake()
         {
@@ -37,6 +38,8 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         /// Randomizes the material of tagged table at the start of each scenario iteration
         /// The randomization is performed only if the sampled float value
         /// falls within the user-defined sampling range.
+        /// Works on sharedMaterial: reading Renderer.material would create a new copy of the
+        /// material asset in the slot, and those copies are never destroyed
         /// </summary>
         protected override void OnIterationStart()
         {
@@ -46,27 +49,22 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 float sampledFloat = samplerApplyMaterial.Sample();
                 if (sampledFloat <= samplingRangeMaterial)
                 {
-                    originalObjMaterial = tag.GetComponent<Renderer>().material;
-                    tag.GetComponent<Renderer>().material = materials.Sample();
+                    Renderer renderer = tag.GetComponent<Renderer>();
+                    replaced.Add((renderer, renderer.sharedMaterial));
+                    renderer.sharedMaterial = materials.Sample();
                 }
             }
         }
 
+        /// <summary>
+        /// Restores the original material of every table changed in this iteration
+        /// </summary>
         protected override void OnIterationEnd()
         {
-            if (originalObjMaterial != null)
-            {
-                var tags = tagManager.Query<TableMaterialRandomizerTag>();
-                foreach (var tag in tags)
-                {
-                    float sampledFloat = samplerApplyMaterial.Sample();
-                    if (sampledFloat <= samplingRangeMaterial)
-                    {
-                        tag.GetComponent<Renderer>().material = originalObjMaterial;
-                        originalObjMaterial = null;
-                    }
-                }
-            }
+            foreach (var (renderer, original) in replaced)
+                if (renderer != null)
+                    renderer.sharedMaterial = original;
+            replaced.Clear();
         }
     }
 }
