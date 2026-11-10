@@ -59,6 +59,9 @@ public static class GsoPrefabBuilder
         public string name;
         public string category;
         public float yaw;
+        // Rotation around the left-right axis, applied before yaw: 90 lays a model scanned upright
+        // (e.g. a honey dipper standing on its head) on its side, along the front-back axis
+        public float pitch;
         public string farthest_to;
         // When false, the grasp parallelepipeds are placed by hand in the prefab, and
         // rebuilding the prefab keeps them
@@ -155,7 +158,8 @@ public static class GsoPrefabBuilder
         string prefabPath = PrefabPath(spec.name);
 
         // GSO models are z-up (as the YCB ones), the Unity frame is y-up
-        Quaternion meshRotation = Quaternion.Euler(0f, spec.yaw, 0f) * Quaternion.Euler(-90f, 0f, 0f);
+        Quaternion meshRotation = Quaternion.Euler(0f, spec.yaw, 0f) * Quaternion.Euler(spec.pitch, 0f, 0f)
+                                  * Quaternion.Euler(-90f, 0f, 0f);
         Vector3[] vertices = mesh.vertices.Select(v => meshRotation * v).ToArray();
         if (!string.IsNullOrEmpty(spec.farthest_to))
         {

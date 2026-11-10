@@ -1,0 +1,16 @@
+{
+  "name": "Progressive_Rubber_Spatulas_3_count",
+  "category": "big_tool",
+  "grasps": [
+    {
+      "name": "prismatic_4fingers",
+      "approach": "top",
+      "offset": [
+        0.0675,
+        0,
+        0.05
+      ],
+      "local_surface": true
+    }
+  ]
+}
