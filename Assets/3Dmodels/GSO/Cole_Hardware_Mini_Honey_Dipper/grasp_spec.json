@@ -1,0 +1,17 @@
+{
+  "name": "Cole_Hardware_Mini_Honey_Dipper",
+  "category": "small_tool",
+  "pitch": 90,
+  "grasps": [
+    {
+      "name": "prismatic_4fingers",
+      "approach": "top",
+      "offset": [
+        0,
+        0,
+        0.0075
+      ],
+      "local_surface": true
+    }
+  ]
+}
