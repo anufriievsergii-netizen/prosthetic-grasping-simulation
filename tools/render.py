@@ -209,8 +209,25 @@ def sequences_from_record(record: Path) -> "OrderedDict[str, list[dict]]":
         return group_captures(z.read(n).decode("utf-8") for n in names)
 
 
+def part_name(g: dict) -> str:
+    """Grasp part as in the prefab's child names: grasp type plus side / nops / usd / susd flags,
+    e.g. adducted_thumb[right], sphere_4fingers[nops][usd]. Two parts of one object can share grasp
+    type and preshape and differ only in these flags."""
+    name = g["grasp_type_name"]
+    if g.get("object_side", "none") != "none":
+        name += f"[{g['object_side']}]"
+    if g.get("no_pronation_supination"):
+        name += "[nops]"
+    if g.get("upside_down") and not g.get("sampling_upside_down"):
+        name += "[usd]"
+    if g.get("sampling_upside_down"):
+        name += "[susd]"
+    return name
+
+
 def labelled(seqs: "OrderedDict[str, list[dict]]") -> list[dict]:
-    """Complete, single-label sequences in generation order (drops Perception's unlabelled warm-up capture)."""
+    """Complete, single-label sequences in generation order (drops Perception's unlabelled warm-up capture).
+    labels = [object instance, grasp type, preshape]; part = the grasp part with its flags (part_name)."""
     out = []
     for seq_id, caps in seqs.items():
         caps = sorted(caps, key=lambda c: c["step"])
@@ -219,6 +236,7 @@ def labelled(seqs: "OrderedDict[str, list[dict]]") -> list[dict]:
                    a["grasp_type_values"]["preshape_name"]) for a in anns}
         if len(labels) == 1 and [c["step"] for c in caps] == list(range(len(caps))):
             out.append({"sequence_id": seq_id, "labels": list(next(iter(labels))),
+                        "part": part_name(anns[0]["grasp_type_values"]),
                         "sequence_parameters": anns[0].get("sequence_parameters"), "captures": caps})
     return out
 
@@ -303,15 +321,15 @@ def make_record(out: Path) -> dict:
     rgb = rgb_dir(out)
     refs, seen = [], set()
     for i, s in enumerate(labelled(sequences_from_render(out))):
-        key = tuple(s["labels"])  # (object instance, grasp type, preshape)
+        key = (s["labels"][0], s["part"], s["labels"][2])  # (object instance, grasp part with flags, preshape)
         if key in seen:
             continue
         seen.add(key)
-        name = f"{len(refs):02d}_{key[0]}__{key[1]}.zip"
+        name = f"{len(refs):02d}_{key[0]}__{re.sub(r'[^A-Za-z0-9_]+', '_', key[1]).strip('_')}.zip"
         with zipfile.ZipFile(rec / "reference" / name, "w", zipfile.ZIP_STORED) as z:  # PNG is compressed
             for c in s["captures"]:
                 z.write(rgb / Path(c["filename"]).name, f"{c['step']:02d}.png")
-        refs.append({"index": i, "sequence_id": s["sequence_id"], "labels": s["labels"],
+        refs.append({"index": i, "sequence_id": s["sequence_id"], "labels": s["labels"], "part": s["part"],
                      "sequence_parameters": s["sequence_parameters"], "frames": f"reference/{name}"})
     (rec / "reference.json").write_text(json.dumps(refs, indent=1) + "\n", encoding="utf-8")
     return {"references": len(refs), "files": sum(1 for f in rec.rglob("*") if f.is_file()),
@@ -328,13 +346,13 @@ def compare(new_out: Path, record: Path, tol_mean: float, tol_frac: float) -> di
 
     old, new = labelled(sequences_from_record(record)), labelled(sequences_from_render(new_out))
     n = min(len(old), len(new))
-    label_diff = [i for i in range(n) if old[i]["labels"] != new[i]["labels"]]
+    label_diff = [i for i in range(n) if (old[i]["labels"], old[i]["part"]) != (new[i]["labels"], new[i]["part"])]
     param_diff = [i for i in range(n) if old[i]["sequence_parameters"] != new[i]["sequence_parameters"]]
     rgb = rgb_dir(new_out)
     frames = []
     for r in json.loads((record / "reference.json").read_text(encoding="utf-8")):
         i = r["index"]
-        if i >= len(new) or new[i]["labels"] != r["labels"]:
+        if i >= len(new) or new[i]["labels"] != r["labels"] or new[i]["part"] != r.get("part", new[i]["part"]):
             frames.append({"frames": r["frames"], "ok": False, "error": "no matching sequence"})
             continue
         means, fracs = [], []
