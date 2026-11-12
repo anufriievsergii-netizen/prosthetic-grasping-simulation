@@ -5,6 +5,7 @@
     python tools/render.py --verify D:/renders/<run_id> --build-log D:/builds/<run_id>/build.log --per-grasp 50
     python tools/render.py --make-record D:/renders/<run_id>                 # (re)write <run_id>/record/
     python tools/render.py --compare D:/renders/<new_run> D:/renders/<run_id>/record   # needs numpy + Pillow
+    python tools/render.py --upload D:/renders/<run_id> [--delete-frames]   # archive an existing run's frames
 
 A render is only made from a committed generator state, so the commit alone pins every
 grasp_spec.json, prefab, scene and script. The script refuses to run when:
@@ -19,9 +20,18 @@ count per sequence, per_grasp sequences for every object-grasp pair of the build
 <out-root>/<run_id>/generation.json. The build folder is deleted after a successful run (it can be
 rebuilt from the commit and the spec) unless --keep-build; its log is copied into the run folder.
 
-Record: the frames are not archived (a re-render from the same commit and spec reproduces every
-sequence's parameters exactly and the pixels up to GPU noise, about 1 grey level). What is kept is
-<run_id>/record/ (~2 GB, a few dozen files, so it uploads fast):
+Archive: after a verified render, the frames are packed into ~1 GB WebDataset tar shards and uploaded
+to s3://grasp-renders/<run_id>/ on the MinIO server (tools/archive.py: layout, integrity,
+credentials), before the record is written, so generation.json carries the "archive" entry. The render
+goes to the local disk first because Perception writes thousands of small files per minute, which the
+S3 server takes at ~20 files/s; the shards upload at ~50 MB/s. The server is checked before the build,
+so a run never renders when it cannot be archived; --no-upload skips the archive, and --upload archives
+an existing run later (resumes after an interruption; never overwrites). --delete-frames then removes
+the local Perception folder (record/ and generation.json stay); without it the local frames are kept.
+
+Record: a re-render from the same commit and spec reproduces every sequence's parameters exactly and
+the pixels up to GPU noise (about 1 grey level), so the record checks a re-render against the archived
+run. It is <run_id>/record/ (~2 GB, a few dozen files, tracked with DVC in grasp_prediction):
     generation.json, build.log, player.log
     perception.zip        all Perception JSON (labels and sequence_parameters of every sequence)
     reference.json        the first sequence of every object-grasp pair: index, id, labels, parameters
@@ -39,7 +49,7 @@ Spec (JSON, committed under render_specs/):
     resolution    [width, height] of the player window = capture resolution
     expected_pairs   optional: fail before rendering if the build selects a different number of pairs
 
-Standard library only (Python >= 3.9), except --compare, which needs numpy and Pillow.
+Standard library only (Python >= 3.10), except --compare, which needs numpy and Pillow.
 """
 import argparse
 import datetime as dt
@@ -53,6 +63,8 @@ import sys
 import zipfile
 from collections import Counter, OrderedDict
 from pathlib import Path
+
+import archive
 
 REPO = Path(__file__).resolve().parent.parent
 UNITY_HUB_EDITORS = Path("C:/Program Files/Unity/Hub/Editor")
@@ -382,6 +394,43 @@ def compare(new_out: Path, record: Path, tol_mean: float, tol_frac: float) -> di
     }
 
 
+# ---------------------------------------------------------------- archive
+
+def connect_archive(args) -> "archive.S3":
+    s3 = archive.connect(args.s3_endpoint, args.env_file)
+    archive.check_bucket(s3, args.bucket)
+    return s3
+
+
+def archive_frames(out: Path, generation: dict, s3: "archive.S3", args) -> dict:
+    """Upload the frames of a verified run (labelled sequences, generation order) as shards."""
+    seqs = labelled(sequences_from_render(out))
+    expected = generation.get("output", {}).get("sequences")
+    if expected is not None and len(seqs) != expected:
+        raise RuntimeError(f"{len(seqs)} labelled sequences, generation.json says {expected}")
+    return archive.upload_run(out, seqs, rgb_dir(out), generation, s3, args.bucket, args.shard_gb)
+
+
+def upload_existing(out: Path, args):
+    """--upload: archive a run rendered earlier (or retry an interrupted upload)."""
+    gen_path = out / "generation.json"
+    generation = json.loads(gen_path.read_text(encoding="utf-8"))
+    if generation.get("status") != "ok":
+        fail(f"{gen_path}: status {generation.get('status')!r}, only verified runs are archived")
+    s3 = connect_archive(args)
+    frames_dir = dataset_dir(out).parent if any(out.glob("*/Dataset*")) else None
+    if frames_dir is None:
+        fail(f"no Perception output under {out} (frames already deleted?)")
+    generation.pop("archive", None)  # the manifest embeds the render's record, not an earlier attempt
+    result = archive_frames(out, generation, s3, args)
+    generation["archive"] = result
+    gen_path.write_text(json.dumps(generation, indent=1) + "\n", encoding="utf-8")
+    print(json.dumps(result, indent=1))
+    if args.delete_frames:
+        archive.delete_frames(out, frames_dir, result)
+        print(f"deleted {frames_dir}")
+
+
 # ---------------------------------------------------------------- main
 
 def restore_build_touched(before: list[str]):
@@ -410,8 +459,25 @@ def main():
                    help="check a re-render against the record of an earlier run")
     p.add_argument("--tol-mean", type=float, default=2.0, help="max mean absolute pixel difference (grey levels)")
     p.add_argument("--tol-frac", type=float, default=0.005, help="max fraction of pixels differing by more than 10")
+    p.add_argument("--upload", type=Path, metavar="RUN_DIR", help="archive the frames of an existing run")
+    p.add_argument("--no-upload", action="store_true", help="render without archiving the frames")
+    p.add_argument("--delete-frames", action="store_true",
+                   help="after a verified upload, delete the local Perception folder (record/ stays)")
+    p.add_argument("--bucket", default=archive.DEFAULT_BUCKET)
+    p.add_argument("--s3-endpoint", help="default: S3_ENDPOINT (environment or --env-file)")
+    p.add_argument("--env-file", type=Path, default=REPO / ".env",
+                   help="MINIO_ACCESS_KEY / MINIO_SECRET_KEY, if not in the environment")
+    p.add_argument("--shard-gb", type=float, default=1.0)
     args = p.parse_args()
+    if args.no_upload and args.delete_frames:
+        p.error("--delete-frames needs the upload")
 
+    if args.upload:
+        try:
+            upload_existing(args.upload, args)
+        except RuntimeError as e:
+            fail(str(e))
+        return
     if args.make_record:
         print(json.dumps(make_record(args.make_record), indent=1))
         return
@@ -453,6 +519,12 @@ def main():
         fail(f"Unity {version} not found at {unity} (pass --unity)")
     if version not in str(unity):
         fail(f"{unity} does not look like Unity {version} (ProjectVersion.txt)")
+    s3 = None
+    if not args.no_upload:
+        try:
+            s3 = connect_archive(args)
+        except RuntimeError as e:
+            fail(f"archive: {e} (or pass --no-upload)")
 
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M")
     run_id = f"{spec['name']}_{stamp}_{state['sha'][:7]}" + ("_dirty" if state["dirty"] else "")
@@ -478,7 +550,9 @@ def main():
                   "-logFile", str(out / "player.log"), "--output-path", str(out)]
 
     print(f"run {run_id}\n  generator {state['sha']} ({state['branch']}), Unity {version}\n"
-          f"  build: {subprocess.list2cmdline(build_cmd)}\n  player: {subprocess.list2cmdline(player_cmd)}")
+          f"  build: {subprocess.list2cmdline(build_cmd)}\n  player: {subprocess.list2cmdline(player_cmd)}\n"
+          f"  archive: " + (f"s3://{args.bucket}/{run_id}/ on {s3.endpoint}" if s3 else "none (--no-upload)")
+          + (", then delete the local frames" if args.delete_frames else ""))
     if args.dry_run:
         n = len(spec["prefabs"]) * 2 * spec["per_grasp"]  # rough: ~2 grasps per object
         print(f"  disk: ~{estimate_bytes(spec, n) / 1e9:.0f} GB needed for ~{n} sequences (~2 grasps per "
@@ -554,8 +628,21 @@ def main():
         record["error"] = str(e)
     record["finished"] = now()
     save()
+
+    # ---- archive: a failed upload keeps the verified render (status stays "ok"); retry with --upload
+    if record["status"] == "ok" and s3:
+        try:
+            record["archive"] = archive_frames(out, dict(record), s3, args)
+        except Exception as e:  # noqa: BLE001 - recorded, reported below
+            record["archive"] = {"status": "failed", "error": str(e)}
+        save()
     if record["status"] == "ok":  # after the final save, so record/ holds the final generation.json
         print("record:", json.dumps(make_record(out)))
+    archived = record.get("archive", {}).get("status") == "ok"
+    if archived and args.delete_frames:
+        frames_dir = dataset_dir(out).parent
+        archive.delete_frames(out, frames_dir, record["archive"])
+        print(f"deleted the local frames {frames_dir}")
 
     if record["status"] == "ok" and not args.keep_build:
         shutil.rmtree(build_dir, ignore_errors=True)
@@ -566,6 +653,12 @@ def main():
     o = record["output"]
     print(f"  {o['sequences']} sequences x {o['frames_per_sequence']} frames, {o['bytes'] / 1e9:.1f} GB, "
           f"per preshape {o['per_preshape']}")
+    if s3 and not archived:
+        print(f"archive failed: {record['archive']['error']}\n  retry: python tools/render.py --upload {out}",
+              file=sys.stderr)
+        sys.exit(1)
+    if archived:
+        print(f"  archived: {record['archive']['url']} ({record['archive']['shards']} shards)")
 
 
 if __name__ == "__main__":

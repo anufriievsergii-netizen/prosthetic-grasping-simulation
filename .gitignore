@@ -116,3 +116,6 @@ python_scripts/*
 !python_scripts/Data_collection*
 !python_scripts/GSO
 .idea/
+
+# MinIO credentials for tools/render.py (archive)
+/.env
