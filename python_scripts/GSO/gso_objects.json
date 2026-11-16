@@ -146,16 +146,8 @@
       ]
     },
     {
-      "name": "Hilary",
-      "category": "shoes",
-      "grasps": [
-        {"name": "tripod", "approach": "top"},
-        {"name": "large_diameter", "approach": "left"}
-      ]
-    },
-    {
       "name": "Aroma_Stainless_Steel_Milk_Frother_2_Cup",
-      "category": "cattle",
+      "category": "kettle",
       "auto_grasps": false,
       "grasps": []
     },
