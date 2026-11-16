@@ -62,7 +62,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42b61d99e84b0b98da9cc17b0802cc21, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GraspObjectInfo
-  category: cattle
+  category: kettle
   source: GSO
   sourceName: Aroma_Stainless_Steel_Milk_Frother_2_Cup
 --- !u!1 &8525754402178713246

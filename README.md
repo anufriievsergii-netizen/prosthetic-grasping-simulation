@@ -72,7 +72,7 @@ Then, in Unity:
 3. Click the play button (or make a Linux build, see below).
 
 ### Objects in the repository
-`python_scripts/GSO/gso_objects.json` lists 25 objects, i.e. 43 object-grasp pairs (power_no3: 23, lateral_no3: 11, pinch_3: 6, pinch_no3: 3). Their grasps follow the `geometry_v2` labels used in grasp_prediction (e.g. the mug handles are `adducted_thumb`). The last column is the render spec in `render_specs/` that uses the object:
+`python_scripts/GSO/gso_objects.json` lists 24 objects, i.e. 41 object-grasp pairs (power_no3: 22, lateral_no3: 11, pinch_3: 5, pinch_no3: 3). Their grasps follow the `geometry_v2` labels used in grasp_prediction (e.g. the mug handles are `adducted_thumb`). The last column is the render spec in `render_specs/` that uses the object:
 
 | Category | Objects | Grasps | Render spec |
 |:---|:---|:---|:---|
@@ -90,8 +90,7 @@ Then, in Unity:
 | big_tool | `Cole_Hardware_Hammer_Black` | `small_diameter` | `gso_pilot` |
 | big_tool | `Progressive_Rubber_Spatulas_3_count` | `prismatic_4fingers` | `gso_pinch` |
 | tube | `Nestle_Nesquik_Chocolate_Powder_Flavored_Milk_Additive_109_Oz_Canister` | `sphere_4fingers[nops]`, `large_diameter[left][susd]`, `large_diameter[right][susd]` | none |
-| shoes | `Hilary` (model only, no prefab) | `tripod`, `large_diameter` | none |
-| cattle | `Aroma_Stainless_Steel_Milk_Frother_2_Cup` | none yet (hand-placed) | none |
+| kettle | `Aroma_Stainless_Steel_Milk_Frother_2_Cup` | none yet (hand-placed) | none |
 | toy | `CASTLE_BLOCKS` | none yet (hand-placed) | none |
 
 ### Browsing the objects in Unity (GSO Browser)
@@ -123,7 +122,7 @@ Then, in Unity:
   python3 python_scripts/GSO/import_gso.py download --preshapes pinch_3 --max-per-category 2
   python3 python_scripts/GSO/import_gso.py download --categories mug dispenser
   ```
-  The preshape and grasp type filters select whole objects, and the pairs shown count all their grasps (e.g. `--preshapes pinch_3` selects 6 objects with 12 pairs, 6 of them `pinch_3`). To execute only the grasps of a preshape, use the preshape filter of the Training Object Selector (see below).
+  The preshape and grasp type filters select whole objects, and the pairs shown count all their grasps (e.g. `--preshapes pinch_3` selects 5 objects with 10 pairs, 5 of them `pinch_3`). To execute only the grasps of a preshape, use the preshape filter of the Training Object Selector (see below).
 
   Downloading an object already imported only updates its `grasp_spec.json` (e.g. after changing its grasps in the list); use `--force` to download it again.
 - Other commands: `add --manual-grasps` adds an object without grasps, to place them by hand in the prefab; `add --replace` replaces an object already in the list; `remove NAME` removes an object from the list and deletes its model and prefab (`--keep-files` to only remove it from the list).
