@@ -1,0 +1,10 @@
+{
+  "name": "gso_pinch_preview",
+  "description": "Preview of the thin Pinch objects (honey dipper, outer rubber spatula): 2 sequences per pair to check the grasp boxes.",
+  "prefabs": ["Cole_Hardware_Mini_Honey_Dipper", "Progressive_Rubber_Spatulas_3_count"],
+  "preshapes": [],
+  "per_grasp": 2,
+  "seed": 20261112,
+  "resolution": [640, 480],
+  "expected_pairs": 2
+}
