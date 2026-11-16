@@ -60,7 +60,7 @@ More training data can be generated with objects from [Google Scanned Objects](h
 - the model in `Assets/3Dmodels/GSO/<name>/google_16k/` (`textured.obj`, `textured.mtl`, `texture_map.png`), together with `grasp_spec.json` (category and grasps) and `metadata.pbtxt` (GSO metadata and license);
 - the prefab in `Assets/Prefabs/GSO/<name>.prefab`, with the same structure as the YCB prefabs: the root (`Labeling` and `GraspObjectInfo` components), the `textured` child (mesh and `MeshCollider`) and the grasp parallelepipeds as its inactive children (transparent material, renderer disabled, `BoxCollider`).
 
-The starter set below is included in the repository (models and prefabs). Other objects are added with the steps below.
+The objects listed below are included in the repository (models and prefabs). Other objects are added with the steps below.
 
 ### Quick start
 ```
@@ -71,17 +71,28 @@ Then, in Unity:
 2. `Tools -> Grasp Objects -> Training Object Selector`: select the objects and grasps, click `Apply to Simulation Scenario` and save the scene.
 3. Click the play button (or make a Linux build, see below).
 
-### Starter set
-`python_scripts/GSO/gso_objects.json` comes with 14 objects of the existing categories, i.e. 28 object-grasp pairs (power_no3: 15, pinch_3: 8, pinch_no3: 3, lateral_no3: 2):
+### Objects in the repository
+`python_scripts/GSO/gso_objects.json` lists 25 objects, i.e. 43 object-grasp pairs (power_no3: 23, lateral_no3: 11, pinch_3: 6, pinch_no3: 3). Their grasps follow the `geometry_v2` labels used in grasp_prediction (e.g. the mug handles are `adducted_thumb`). The last column is the render spec in `render_specs/` that uses the object:
 
-| Category | Objects | Grasps |
-|:---|:---|:---|
-| mug | `ACE_Coffee_Mug_Kristen_16_oz_cup`, `Room_Essentials_Mug_White_Yellow`, `Cole_Hardware_Mug_Classic_Blue`, `Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White` | `large_diameter[susd]`, `sphere_4fingers[nops]`, `prismatic_2fingers[susd]` (handle) |
-| dispenser | `Marc_Anthony_Skip_Professional_Oil_of_Morocco_Conditioner_with_Argan_Oil`, `Lutein`, `5_HTP`, `CoQ10` | `large_diameter`, `tripod[nops]` (cap) |
-| tube | `Nestle_Nesquik_Chocolate_Powder_Flavored_Milk_Additive_109_Oz_Canister` | `sphere_4fingers[nops]`, `large_diameter[left][susd]`, `large_diameter[right][susd]` |
-| plate | `Threshold_Dinner_Plate_Square_Rim_White_Porcelain`, `Room_Essentials_Salad_Plate_Turquoise` | `adducted_thumb[border]` (rim) |
-| small_tool | `Craftsman_Grip_Screwdriver_Phillips_Cushion`, `Diamond_Visions_Scissors_Red` | `prismatic_4fingers` |
-| big_tool | `OXO_Cookie_Spatula` | `prismatic_4fingers` |
+| Category | Objects | Grasps | Render spec |
+|:---|:---|:---|:---|
+| mug | `ACE_Coffee_Mug_Kristen_16_oz_cup`, `Room_Essentials_Mug_White_Yellow`, `Cole_Hardware_Mug_Classic_Blue`, `Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White` | `large_diameter[susd]`, `sphere_4fingers[nops]`, `adducted_thumb[susd]` (handle) | `gso_pilot` |
+| dispenser | `Marc_Anthony_Skip_Professional_Oil_of_Morocco_Conditioner_with_Argan_Oil`, `Lutein`, `5_HTP`, `CoQ10` | `large_diameter`, `tripod[nops]` (cap) | `gso_pilot` |
+| dispenser | `Threshold_Porcelain_Pitcher_White` | `adducted_thumb`, `sphere_4fingers[nops]` | `gso_pilot` |
+| teapot | `Threshold_Porcelain_Teapot_White` | `adducted_thumb`, `tripod[nops]` | `gso_pilot` |
+| glass | `Ecoforms_Cup_B4_SAN` | `sphere_4fingers[nops]`, `large_diameter[susd]` | `gso_pilot` |
+| glass | `Threshold_Ramekin_White_Porcelain` | `sphere_4fingers[nops]` | `gso_pilot` |
+| plate | `Threshold_Dinner_Plate_Square_Rim_White_Porcelain`, `Room_Essentials_Salad_Plate_Turquoise`, `Threshold_Tray_Rectangle_Porcelain` | `adducted_thumb[border]` (rim) | `gso_pilot` |
+| small_tool | `Craftsman_Grip_Screwdriver_Phillips_Cushion` | `small_diameter` | `gso_pilot` |
+| small_tool | `Diamond_Visions_Scissors_Red` | `prismatic_4fingers`, `adducted_thumb[border]` | `gso_pilot` |
+| small_tool | `Cole_Hardware_Mini_Honey_Dipper` | `prismatic_4fingers` | `gso_pinch` |
+| big_tool | `OXO_Cookie_Spatula` | `small_diameter`, `adducted_thumb[border]` | `gso_pilot` |
+| big_tool | `Cole_Hardware_Hammer_Black` | `small_diameter` | `gso_pilot` |
+| big_tool | `Progressive_Rubber_Spatulas_3_count` | `prismatic_4fingers` | `gso_pinch` |
+| tube | `Nestle_Nesquik_Chocolate_Powder_Flavored_Milk_Additive_109_Oz_Canister` | `sphere_4fingers[nops]`, `large_diameter[left][susd]`, `large_diameter[right][susd]` | none |
+| shoes | `Hilary` (model only, no prefab) | `tripod`, `large_diameter` | none |
+| cattle | `Aroma_Stainless_Steel_Milk_Frother_2_Cup` | none yet (hand-placed) | none |
+| toy | `CASTLE_BLOCKS` | none yet (hand-placed) | none |
 
 ### Browsing the objects in Unity (GSO Browser)
 `Tools -> Grasp Objects -> GSO Browser` shows the whole GSO catalog, to look at the objects and decide which ones to add:
@@ -104,7 +115,7 @@ Then, in Unity:
 - Add a model to the list, with its category (used as `object_name` in the labels) and its grasps (`NAME:APPROACH`):
   ```
   python3 python_scripts/GSO/import_gso.py add Cole_Hardware_Mug_Classic_Blue --category mug --farthest-to right \
-      --grasp "large_diameter[susd]:left" --grasp "sphere_4fingers[nops]:top" --grasp "prismatic_2fingers[susd]:right"
+      --grasp "large_diameter[susd]:left" --grasp "sphere_4fingers[nops]:top" --grasp "adducted_thumb[susd]:right"
   ```
 - List or download the objects needed for the training, selected by name (`--names`), category (`--categories`), preshape (`--preshapes`, objects having at least one grasp with that preshape), grasp type (`--grasp-types`) and `--max-per-category`. `list` shows the selected objects (`*` = already imported) and the resulting object-grasp pairs per preshape; `download --dry-run` does the same without downloading:
   ```
@@ -112,7 +123,7 @@ Then, in Unity:
   python3 python_scripts/GSO/import_gso.py download --preshapes pinch_3 --max-per-category 2
   python3 python_scripts/GSO/import_gso.py download --categories mug dispenser
   ```
-  The preshape and grasp type filters select whole objects, and the pairs shown count all their grasps (e.g. `--preshapes pinch_3` selects 8 objects with 20 pairs, 8 of them `pinch_3`). To execute only the grasps of a preshape, use the preshape filter of the Training Object Selector (see below).
+  The preshape and grasp type filters select whole objects, and the pairs shown count all their grasps (e.g. `--preshapes pinch_3` selects 6 objects with 12 pairs, 6 of them `pinch_3`). To execute only the grasps of a preshape, use the preshape filter of the Training Object Selector (see below).
 
   Downloading an object already imported only updates its `grasp_spec.json` (e.g. after changing its grasps in the list); use `--force` to download it again.
 - Other commands: `add --manual-grasps` adds an object without grasps, to place them by hand in the prefab; `add --replace` replaces an object already in the list; `remove NAME` removes an object from the list and deletes its model and prefab (`--keep-files` to only remove it from the list).
@@ -124,6 +135,7 @@ The fields of an object in `gso_objects.json`:
 | `name` | Model name on Gazebo Fuel |
 | `category` | Object category used in the labels, e.g. `mug`, `dispenser` (see `GraspCatalog.instance2object` for the YCB ones) |
 | `yaw` | Optional rotation (degrees) around the vertical axis |
+| `pitch` | Optional rotation (degrees) around the left-right axis, applied before `yaw`: 90 lays a model scanned upright on its side, along the front-back axis |
 | `auto_grasps` | Optional, default `true`. `false`: the grasp parallelepipeds are placed by hand in the prefab, and `grasps` is empty |
 | `farthest_to` | Optional, `left`/`right`/`front`/`back`: rotates the object such that its most protruding part (e.g. the handle of a mug) faces that side |
 | `grasps[].name` | Grasp type and tags, as the grasp parallelepipeds of the YCB prefabs, e.g. `large_diameter[left][susd]`. Tags: `[left]`/`[right]` (object side), `[nops]` (no pronation-supination), `[usd]` (upside down), `[susd]` (randomly standing or upside down), `[border]` (object placed on the table border, e.g. to grasp a plate by its rim) |
@@ -131,6 +143,7 @@ The fields of an object in `gso_objects.json`:
 | `grasps[].height` | Optional, side grasps: where along the object height (0..1, default 0.5) |
 | `grasps[].offset` | Optional `[x, y, z]` (meters) added to the grasp position |
 | `grasps[].size` | Optional `[x, y, z]` (meters) parallelepiped size: x along the palm width, z along the approach direction. By default, a size per grasp type, similar to the YCB prefabs |
+| `grasps[].local_surface` | Optional, top and bottom grasps: `true` keeps the surface the approach line reaches even when it is more than 1 cm below the highest part of the object (e.g. a handle lower than the rest) |
 
 ### Building the prefabs
 `Tools -> Grasp Objects -> Build GSO Prefabs` builds (or rebuilds) the prefab of every object in `Assets/3Dmodels/GSO`. The model is put upright and its bounding box centered on the prefab origin. Each grasp parallelepiped is placed where its approach line reaches the mesh surface, with its center 5 mm outside the surface, such that the visibility check of `WristCameraMovement` hits it before the object; for top and bottom grasps of hollow objects (e.g. a mug) it is placed on the rim. The prefabs are built in a preview scene (the open scene is not modified) and rebuilding a prefab keeps its GUID, hence the references in the scene.
@@ -164,17 +177,17 @@ The YCB prefabs are never rebuilt, so the grasp parallelepipeds added to them ar
 - the number of selected objects, the object-grasp pairs per preshape (to balance the data) and the resulting `Iteration Count` are shown;
 - `Apply to Simulation Scenario` sets, in the open scene, the `WristCameraMovement` prefabs list, its `Preshape Filter` and `Grasp Type Filter` (only the grasps passing them are executed, empty = all), `Num Iterations Per Grasp` and the matching `Iteration Count`. It can be undone (`Ctrl+Z`); save the scene to keep it. `Load selection from scenario` shows the current selection of the scenario.
 
-For instance, selecting only the `pinch_3` preshape gives 13 object-grasp pairs (8 GSO and 5 YCB), i.e. an `Iteration Count` of 650 with 50 iterations per grasp.
+For instance, selecting only the `pinch_3` preshape gives 10 object-grasp pairs (5 GSO and 5 YCB), i.e. an `Iteration Count` of 500 with 50 iterations per grasp.
 
 ### Validation
 The pose sampling and trajectory check of `WristCameraMovement` were simulated in edit mode on the `Data_collection` scene, with 300 random camera-object poses per object-grasp pair (the simulation stops when no valid pose is found in 1000 attempts):
 
 | Object-grasp pairs | Valid poses |
 |:---|:---|
-| GSO starter set (28 pairs) | 51-100% |
+| The first 14 GSO objects (28 pairs) | 51-100% |
 | YCB prefabs (36 pairs, for reference) | 1-100% |
 
-The GSO prefabs are upright and textured with their original texture (labeled as `Original`, as the YCB ones). A full Play mode data collection with the GSO objects has not been run yet.
+The GSO prefabs are upright and textured with their original texture (labeled as `Original`, as the YCB ones). Two data collections with GSO objects have been rendered with `tools/render.py` (see below): `gso_pilot` (19 objects, 36 object-grasp pairs, 1800 sequences) and `gso_pinch` (2 objects, 2 pairs, 100 sequences).
 
 ### Limitations
 - The automatic grasp placement is a starting point: check it for every new object, especially for handles and objects with irregular shapes.
