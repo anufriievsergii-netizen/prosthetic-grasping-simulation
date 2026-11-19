@@ -1,0 +1,18 @@
+{
+  "name": "030_fork",
+  "source": "ycb",
+  "category": "small_tool",
+  "yaw": 179.9,
+  "grasps": [
+    {
+      "name": "prismatic_4fingers",
+      "approach": "top",
+      "offset": [
+        0.05,
+        0,
+        0
+      ],
+      "local_surface": true
+    }
+  ]
+}

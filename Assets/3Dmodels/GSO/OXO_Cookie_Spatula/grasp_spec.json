@@ -3,12 +3,17 @@
   "category": "big_tool",
   "grasps": [
     {
-      "name": "small_diameter",
+      "name": "prismatic_4fingers",
       "approach": "top",
       "offset": [
         0.06,
         0,
         0
+      ],
+      "size": [
+        0.04,
+        0.02,
+        0.03
       ]
     },
     {

@@ -1,0 +1,11 @@
+{
+  "name": "077_rubiks_cube",
+  "source": "ycb",
+  "category": "big_cube",
+  "grasps": [
+    {
+      "name": "power_sphere[nops]",
+      "approach": "top"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Cole_Hardware_Butter_Dish_Square_Red",
+  "category": "dish",
+  "grasps": [
+    {
+      "name": "tripod[nops]",
+      "approach": "top"
+    }
+  ]
+}

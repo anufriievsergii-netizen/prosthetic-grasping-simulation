@@ -1,0 +1,38 @@
+model {
+  file: "model.sdf"
+}
+name: "Remington_1_12_inch_Hair_Straightener"
+description: "Remington 1 1/2 inch Hair Straightener"
+version: 1
+authors {
+  name: "Google"
+  email: "scanned-objects@google.com"
+}
+legal {
+  copyright: "Copyright 2020 Google LLC."
+  license: "Creative Commons Attribution 4.0 International"
+}
+annotations {
+  key: "brand"
+  value: "Remington"
+}
+annotations {
+  key: "gtin"
+  value: "074590520903"
+}
+annotations {
+  key: "mpn"
+  value: "ci-96x1"
+}
+annotations {
+  key: "sku"
+  value: "074590520903"
+}
+compatibilities {
+  name: "Gazebo"
+  version {
+    major: 11
+  }
+}
+categories {
+}

@@ -20,6 +20,11 @@
 #   python3 python_scripts/GSO/import_gso.py list --preshapes pinch_3
 #   python3 python_scripts/GSO/import_gso.py download --categories mug dispenser
 #   python3 python_scripts/GSO/import_gso.py download --preshapes pinch_3 --max-per-category 2
+#
+# Objects of the YCB benchmark that are not in the project can be listed in the same manifest with
+# "source": "ycb" (the name is the YCB id, e.g. 043_phillips_screwdriver). They are downloaded from the YCB
+# benchmark's google_16k meshes, which have the same layout, and built by the same prefab builder. YCB objects
+# are under CC BY 4.0 as well (http://www.ycbbenchmarks.com).
 
 import argparse
 import json
@@ -36,6 +41,7 @@ from collections import Counter, OrderedDict
 
 FUEL_URL = 'https://fuel.gazebosim.org/1.0'
 FUEL_OWNER = 'GoogleResearch'
+YCB_URL = 'http://ycb-benchmarks.s3-website-us-east-1.amazonaws.com/data/google/{}_google_16k.tgz'
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
@@ -94,6 +100,8 @@ def validate_object(obj):
     # Without automatic grasps, the grasp parallelepipeds are added by hand in the prefab
     if obj.get('auto_grasps', True) and not obj.get('grasps'):
         errors.append('no grasps (use manual grasps to add them by hand in the prefab)')
+    if obj.get('source', 'gso') not in ('gso', 'ycb'):
+        errors.append('source must be gso or ycb')
     if obj.get('farthest_to') not in (None, 'left', 'right', 'front', 'back'):
         errors.append('farthest_to must be one of left, right, front, back')
     for grasp in obj.get('grasps', []):
@@ -291,6 +299,34 @@ def convert_model(zip_path, obj):
     write_grasp_spec(obj)
 
 
+def download_ycb_model(obj):
+    # Only the three mesh files are read, by name, from the YCB archive; nothing else is extracted
+    import io
+    import tarfile
+    with urllib.request.urlopen(YCB_URL.format(obj['name']), timeout=300) as response:
+        blob = response.read()
+    wanted = {'textured.obj', 'textured.mtl', 'texture_map.png'}
+    files = {}
+    with tarfile.open(fileobj=io.BytesIO(blob), mode='r:gz') as archive:
+        for member in archive.getmembers():
+            parts = member.name.split('/')
+            if member.isfile() and len(parts) >= 2 and parts[-2] == 'google_16k' and parts[-1] in wanted:
+                files[parts[-1]] = archive.extractfile(member).read()
+    missing = wanted - set(files)
+    if missing:
+        raise RuntimeError('{}: {} not in the YCB archive'.format(obj['name'], ', '.join(sorted(missing))))
+    object_dir = os.path.join(MODELS_DIR, obj['name'])
+    mesh_dir = os.path.join(object_dir, 'google_16k')
+    os.makedirs(mesh_dir, exist_ok=True)
+    for name, data in files.items():
+        with open(os.path.join(mesh_dir, name), 'wb') as f:
+            f.write(data)
+    with open(os.path.join(object_dir, 'metadata.pbtxt'), 'w', newline='\n') as f:
+        f.write('name: "{}"\nsource: "YCB Object and Model Set, google_16k ({})"\n'
+                'license: "Creative Commons Attribution 4.0 International"\n'.format(obj['name'], YCB_URL.format(obj['name'])))
+    write_grasp_spec(obj)
+
+
 def write_grasp_spec(obj):
     with open(os.path.join(MODELS_DIR, obj['name'], 'grasp_spec.json'), 'w', newline='\n') as f:
         json.dump(obj, f, indent=2)
@@ -322,6 +358,9 @@ def cmd_download(args):
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = os.path.join(tmp, 'model.zip')
             print(prefix + ': downloading', flush=True)
+            if obj.get('source') == 'ycb':
+                download_ycb_model(obj)
+                continue
             download_model(obj['name'], zip_path)
             convert_model(zip_path, obj)
     print('\nDone. Now in Unity: Tools -> Grasp Objects -> Build GSO Prefabs')

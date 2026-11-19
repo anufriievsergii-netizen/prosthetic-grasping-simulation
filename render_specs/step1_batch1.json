@@ -1,0 +1,24 @@
+{
+  "name": "step1_batch1",
+  "description": "Step 1, batch 1 of grasp_prediction's next_steps.md: 4 thick Power grips from above, 3 thin Pinch tools, a 21 mm dice and a 68 mm Rubik's cube, a butter-dish lid knob (10 objects, 10 pairs).",
+  "prefabs": [
+    "043_phillips_screwdriver",
+    "OXO_Soft_Works_Can_Opener_SnapLock",
+    "Remington_1_12_inch_Hair_Straightener",
+    "HeavyDuty_Flashlight",
+    "030_fork",
+    "032_knife",
+    "042_adjustable_wrench",
+    "062_dice",
+    "077_rubiks_cube",
+    "Cole_Hardware_Butter_Dish_Square_Red"
+  ],
+  "preshapes": [],
+  "per_grasp": 50,
+  "seed": 20261120,
+  "resolution": [
+    640,
+    480
+  ],
+  "expected_pairs": 10
+}

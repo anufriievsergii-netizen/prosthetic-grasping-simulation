@@ -134,12 +134,17 @@
       "category": "big_tool",
       "grasps": [
         {
-          "name": "small_diameter",
+          "name": "prismatic_4fingers",
           "approach": "top",
           "offset": [
             0.06,
             0,
             0
+          ],
+          "size": [
+            0.04,
+            0.02,
+            0.03
           ]
         },
         {"name": "adducted_thumb[border]", "approach": "front"}
@@ -244,6 +249,153 @@
           ],
           "local_surface": true
         }
+      ]
+    },
+    {
+      "name": "043_phillips_screwdriver",
+      "source": "ycb",
+      "category": "small_tool",
+      "yaw": -153.3,
+      "grasps": [
+        {
+          "name": "small_diameter",
+          "approach": "top",
+          "offset": [
+            0.07,
+            0,
+            0
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "OXO_Soft_Works_Can_Opener_SnapLock",
+      "category": "small_tool",
+      "yaw": -178.9,
+      "grasps": [
+        {
+          "name": "small_diameter",
+          "approach": "top",
+          "offset": [
+            0.035,
+            0,
+            0
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "Remington_1_12_inch_Hair_Straightener",
+      "category": "big_tool",
+      "yaw": 88.9,
+      "grasps": [
+        {
+          "name": "small_diameter",
+          "approach": "top",
+          "offset": [
+            0.045,
+            0,
+            0.022
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "HeavyDuty_Flashlight",
+      "category": "big_tool",
+      "pitch": 90,
+      "yaw": 86.9,
+      "grasps": [
+        {
+          "name": "medium_wrap",
+          "approach": "top",
+          "offset": [
+            -0.005,
+            0,
+            0
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "030_fork",
+      "source": "ycb",
+      "category": "small_tool",
+      "yaw": 179.9,
+      "grasps": [
+        {
+          "name": "prismatic_4fingers",
+          "approach": "top",
+          "offset": [
+            0.05,
+            0,
+            0
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "032_knife",
+      "source": "ycb",
+      "category": "small_tool",
+      "yaw": 179.0,
+      "grasps": [
+        {
+          "name": "prismatic_4fingers",
+          "approach": "top",
+          "offset": [
+            0.055,
+            0,
+            0
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "042_adjustable_wrench",
+      "source": "ycb",
+      "category": "small_tool",
+      "yaw": 121.3,
+      "grasps": [
+        {
+          "name": "prismatic_4fingers",
+          "approach": "top",
+          "offset": [
+            -0.04,
+            0,
+            0
+          ],
+          "local_surface": true
+        }
+      ]
+    },
+    {
+      "name": "062_dice",
+      "source": "ycb",
+      "category": "small_cube",
+      "grasps": [
+        {"name": "tripod[nops]", "approach": "top"}
+      ]
+    },
+    {
+      "name": "077_rubiks_cube",
+      "source": "ycb",
+      "category": "big_cube",
+      "grasps": [
+        {"name": "power_sphere[nops]", "approach": "top"}
+      ]
+    },
+    {
+      "name": "Cole_Hardware_Butter_Dish_Square_Red",
+      "category": "dish",
+      "grasps": [
+        {"name": "tripod[nops]", "approach": "top"}
       ]
     }
   ]

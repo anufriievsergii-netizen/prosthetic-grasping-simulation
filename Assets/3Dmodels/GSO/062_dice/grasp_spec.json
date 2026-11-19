@@ -1,0 +1,11 @@
+{
+  "name": "062_dice",
+  "source": "ycb",
+  "category": "small_cube",
+  "grasps": [
+    {
+      "name": "tripod[nops]",
+      "approach": "top"
+    }
+  ]
+}
