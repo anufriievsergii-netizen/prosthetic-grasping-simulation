@@ -1,0 +1,24 @@
+{
+  "name": "step1_batch1_preview",
+  "description": "Preview of step 1, batch 1 (thick grips, thin tools, dice, Rubik's cube, butter-dish lid knob): 2 sequences per pair to check the grasp boxes.",
+  "prefabs": [
+    "043_phillips_screwdriver",
+    "OXO_Soft_Works_Can_Opener_SnapLock",
+    "Remington_1_12_inch_Hair_Straightener",
+    "HeavyDuty_Flashlight",
+    "030_fork",
+    "032_knife",
+    "042_adjustable_wrench",
+    "062_dice",
+    "077_rubiks_cube",
+    "Cole_Hardware_Butter_Dish_Square_Red"
+  ],
+  "preshapes": [],
+  "per_grasp": 2,
+  "seed": 20261119,
+  "resolution": [
+    640,
+    480
+  ],
+  "expected_pairs": 10
+}

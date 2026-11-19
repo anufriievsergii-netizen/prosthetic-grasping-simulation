@@ -1,0 +1,17 @@
+{
+  "name": "Remington_1_12_inch_Hair_Straightener",
+  "category": "big_tool",
+  "yaw": 88.9,
+  "grasps": [
+    {
+      "name": "small_diameter",
+      "approach": "top",
+      "offset": [
+        0.045,
+        0,
+        0.022
+      ],
+      "local_surface": true
+    }
+  ]
+}

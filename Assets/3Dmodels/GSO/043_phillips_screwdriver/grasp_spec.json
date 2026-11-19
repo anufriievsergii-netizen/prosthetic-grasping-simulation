@@ -1,0 +1,18 @@
+{
+  "name": "043_phillips_screwdriver",
+  "source": "ycb",
+  "category": "small_tool",
+  "yaw": -153.3,
+  "grasps": [
+    {
+      "name": "small_diameter",
+      "approach": "top",
+      "offset": [
+        0.07,
+        0,
+        0
+      ],
+      "local_surface": true
+    }
+  ]
+}

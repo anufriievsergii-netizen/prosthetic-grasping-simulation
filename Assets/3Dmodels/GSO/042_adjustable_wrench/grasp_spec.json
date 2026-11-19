@@ -1,0 +1,18 @@
+{
+  "name": "042_adjustable_wrench",
+  "source": "ycb",
+  "category": "small_tool",
+  "yaw": 121.3,
+  "grasps": [
+    {
+      "name": "prismatic_4fingers",
+      "approach": "top",
+      "offset": [
+        -0.04,
+        0,
+        0
+      ],
+      "local_surface": true
+    }
+  ]
+}

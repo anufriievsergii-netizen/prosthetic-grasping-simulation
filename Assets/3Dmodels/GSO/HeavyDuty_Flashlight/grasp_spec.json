@@ -1,0 +1,18 @@
+{
+  "name": "HeavyDuty_Flashlight",
+  "category": "big_tool",
+  "pitch": 90,
+  "yaw": 86.9,
+  "grasps": [
+    {
+      "name": "medium_wrap",
+      "approach": "top",
+      "offset": [
+        -0.005,
+        0,
+        0
+      ],
+      "local_surface": true
+    }
+  ]
+}

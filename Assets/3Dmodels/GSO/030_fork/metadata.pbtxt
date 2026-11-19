@@ -1,0 +1,3 @@
+name: "030_fork"
+source: "YCB Object and Model Set, google_16k (http://ycb-benchmarks.s3-website-us-east-1.amazonaws.com/data/google/030_fork_google_16k.tgz)"
+license: "Creative Commons Attribution 4.0 International"

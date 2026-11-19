@@ -1,0 +1,17 @@
+{
+  "name": "OXO_Soft_Works_Can_Opener_SnapLock",
+  "category": "small_tool",
+  "yaw": -178.9,
+  "grasps": [
+    {
+      "name": "small_diameter",
+      "approach": "top",
+      "offset": [
+        0.035,
+        0,
+        0
+      ],
+      "local_surface": true
+    }
+  ]
+}
