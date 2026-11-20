@@ -1,0 +1,14 @@
+{
+  "name": "ycb_texture_p05",
+  "description": "Texture randomisation pilot of grasp_prediction's next_steps.md (step 5, item 3): the 15 YCB objects of the scene (31 pairs) with the run 26fac953's seed and per_grasp, and the object texture replaced by a random plain colour in half of the sequences. The sequences are those of 26fac953 apart from the texture (check with render.py --compare against its record).",
+  "prefabs": [],
+  "preshapes": [],
+  "per_grasp": 50,
+  "seed": 539662088,
+  "resolution": [
+    640,
+    480
+  ],
+  "expected_pairs": 31,
+  "object_material_prob": 0.5
+}

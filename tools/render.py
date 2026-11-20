@@ -48,6 +48,15 @@ Spec (JSON, committed under render_specs/):
     seed          scenario random seed
     resolution    [width, height] of the player window = capture resolution
     expected_pairs   optional: fail before rendering if the build selects a different number of pairs
+    object_material_prob   optional, default 0: probability that a sequence's object texture is replaced
+                  by a random plain colour (WristCameraMovement.samplingRangeObjectMaterial). The other
+                  random draws do not depend on it, so the same spec with 0 gives the same sequences
+                  with the original textures; recoloured sequences carry object_material_randomised,
+                  object_metallic and object_smoothness in their sequence_parameters. The pixels are not
+                  the texture alone: HDRP's automatic exposure carries over from one sequence to the
+                  next, so a sequence that follows a recoloured one starts with a different exposure
+                  (ycb_texture_p05 against 26fac953: 9-66 grey levels mean difference in steps 0-9,
+                  about 1 by the end; about 1 throughout after a sequence that kept its texture)
 
 Standard library only (Python >= 3.10), except --compare, which needs numpy and Pillow.
 """
@@ -72,7 +81,8 @@ UNITY_HUB_EDITORS = Path("C:/Program Files/Unity/Hub/Editor")
 BUILD_TOUCHED = ["Assets/Resources", "ProjectSettings/BurstAotSettings_StandaloneWindows.json"]
 # Measured on gso_pilot: 73 GB for 1800 sequences of 90 frames at 640x480.
 MB_PER_SEQ_640x480 = 45
-SPEC_KEYS = {"name", "prefabs", "preshapes", "per_grasp", "seed", "resolution", "expected_pairs", "description"}
+SPEC_KEYS = {"name", "prefabs", "preshapes", "per_grasp", "seed", "resolution", "expected_pairs", "description",
+             "object_material_prob"}
 
 
 def git(*args, check=True) -> str:
@@ -100,6 +110,9 @@ def load_spec(path: Path) -> dict:
         fail(f"spec {path}: unknown keys {sorted(unknown)}, missing keys {sorted(missing)}")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", spec["name"]):
         fail("spec name may only contain letters, digits, '_' and '-'")
+    p = spec.get("object_material_prob", 0)
+    if isinstance(p, bool) or not isinstance(p, (int, float)) or not 0 <= p <= 1:
+        fail(f"spec {path}: object_material_prob must be a number in [0, 1], got {p!r}")
     spec.setdefault("prefabs", [])
     spec.setdefault("preshapes", [])
     return spec
@@ -176,7 +189,9 @@ def parse_build_log(log: Path) -> dict:
     summary = re.search(r"\[BatchDataCollection\] prefabs=(\d+) .*?pairs=(\d+) perGrasp=(\d+) "
                         r"iterationCount=(\d+) seed=(\d+)", text)
     result = re.search(r"\[BatchDataCollection\] build result: (\w+)", text)
+    material = re.search(r"\[BatchDataCollection\] prefabs=.*? objectMaterialProb=(\S+)", text)
     return {
+        "object_material_prob": float(material.group(1)) if material else None,  # None: build before the flag
         "pairs": [f"{o} / {g}" for o, g in pairs],
         "num_pairs": int(summary.group(2)) if summary else None,
         "iteration_count": int(summary.group(4)) if summary else None,
@@ -348,9 +363,24 @@ def make_record(out: Path) -> dict:
             "bytes": folder_bytes(rec)}
 
 
+MATERIAL_KEYS = ("object_material_randomised", "object_metallic", "object_smoothness")
+
+
+def recoloured(s: dict) -> bool:
+    return bool((s["sequence_parameters"] or {}).get("object_material_randomised"))
+
+
+def without_material(params: dict | None) -> dict | None:
+    """sequence_parameters without the texture randomisation keys: what has to match between a render
+    and the same spec rendered with another object_material_prob."""
+    return None if params is None else {k: v for k, v in params.items() if k not in MATERIAL_KEYS}
+
+
 def compare(new_out: Path, record: Path, tol_mean: float, tol_frac: float) -> dict:
     """Check a re-render against a record: labels and sequence_parameters of every sequence, and the
-    pixels of the reference sequences."""
+    pixels of the reference sequences. The texture randomisation keys are left out of the parameter
+    check, and reference sequences recoloured in either run are not compared pixel by pixel, so a
+    render with object_material_prob > 0 can be checked against the record of the same spec with 0."""
     import io
 
     import numpy as np
@@ -359,13 +389,17 @@ def compare(new_out: Path, record: Path, tol_mean: float, tol_frac: float) -> di
     old, new = labelled(sequences_from_record(record)), labelled(sequences_from_render(new_out))
     n = min(len(old), len(new))
     label_diff = [i for i in range(n) if (old[i]["labels"], old[i]["part"]) != (new[i]["labels"], new[i]["part"])]
-    param_diff = [i for i in range(n) if old[i]["sequence_parameters"] != new[i]["sequence_parameters"]]
+    param_diff = [i for i in range(n) if without_material(old[i]["sequence_parameters"])
+                  != without_material(new[i]["sequence_parameters"])]
     rgb = rgb_dir(new_out)
     frames = []
     for r in json.loads((record / "reference.json").read_text(encoding="utf-8")):
         i = r["index"]
         if i >= len(new) or new[i]["labels"] != r["labels"] or new[i]["part"] != r.get("part", new[i]["part"]):
             frames.append({"frames": r["frames"], "ok": False, "error": "no matching sequence"})
+            continue
+        if recoloured(new[i]) or (i < len(old) and recoloured(old[i])):
+            frames.append({"frames": r["frames"], "ok": True, "skipped": "recoloured"})
             continue
         means, fracs = [], []
         with zipfile.ZipFile(record / r["frames"]) as z:
@@ -386,9 +420,11 @@ def compare(new_out: Path, record: Path, tol_mean: float, tol_frac: float) -> di
         "ok": len(old) == len(new) and not label_diff and not param_diff and all(f["ok"] for f in frames),
         "sequences": {"record": len(old), "new": len(new)},
         "label_mismatches": len(label_diff), "parameter_mismatches": len(param_diff),
+        "recoloured": {"record": sum(map(recoloured, old)), "new": sum(map(recoloured, new))},
         "first_mismatches": sorted(set(label_diff + param_diff))[:10],
         "tolerance": {"mean_abs": tol_mean, "frac_gt10": tol_frac},
-        "reference_worst": max(frames, key=lambda f: f.get("mean_abs", float("inf")), default=None),
+        "reference_worst": max((f for f in frames if "skipped" not in f),
+                               key=lambda f: f.get("mean_abs", float("inf")), default=None),
         "reference_failed": [f for f in frames if not f["ok"]],
         "references": frames,
     }
@@ -540,6 +576,7 @@ def main():
     build_cmd = [str(unity), "-batchmode", "-quit", "-projectPath", str(REPO),
                  "-executeMethod", "BatchDataCollection.Build",
                  "-perGrasp", str(spec["per_grasp"]), "-seed", str(spec["seed"]),
+                 "-objectMaterialProb", repr(float(spec.get("object_material_prob", 0))),
                  "-buildPath", str(exe), "-logFile", str(build_log)]
     if spec["prefabs"]:
         build_cmd += ["-prefabs", ",".join(spec["prefabs"])]
@@ -598,6 +635,9 @@ def main():
             raise RuntimeError(f"build failed (exit {r.returncode}, result {info['result']}), see build.log")
         if spec.get("expected_pairs") is not None and info["num_pairs"] != spec["expected_pairs"]:
             raise RuntimeError(f"build selected {info['num_pairs']} pairs, spec expects {spec['expected_pairs']}")
+        if info["object_material_prob"] != float(spec.get("object_material_prob", 0)):
+            raise RuntimeError(f"build set objectMaterialProb={info['object_material_prob']}, "
+                               f"spec has {spec.get('object_material_prob', 0)}")
         need = estimate_bytes(spec, info["num_pairs"] * spec["per_grasp"])
         if free_bytes(out) < 1.1 * need:
             raise RuntimeError(f"~{need / 1e9:.0f} GB needed for {info['num_pairs']} pairs, "

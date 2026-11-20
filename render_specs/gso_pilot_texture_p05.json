@@ -1,0 +1,34 @@
+{
+  "name": "gso_pilot_texture_p05",
+  "description": "Full texture randomisation test of grasp_prediction's next_steps.md (step 5, item 3): render_specs/gso_pilot.json (run gso_pilot_20261110-1000_f853c2e) with the object texture replaced by a random plain colour in half of the sequences. Same prefabs, seed and per_grasp, so the sequences match that run apart from the texture wherever the prefabs did not change since.",
+  "prefabs": [
+    "ACE_Coffee_Mug_Kristen_16_oz_cup",
+    "Room_Essentials_Mug_White_Yellow",
+    "Cole_Hardware_Mug_Classic_Blue",
+    "Threshold_Porcelain_Coffee_Mug_All_Over_Bead_White",
+    "Marc_Anthony_Skip_Professional_Oil_of_Morocco_Conditioner_with_Argan_Oil",
+    "Lutein",
+    "5_HTP",
+    "CoQ10",
+    "Threshold_Dinner_Plate_Square_Rim_White_Porcelain",
+    "Room_Essentials_Salad_Plate_Turquoise",
+    "Craftsman_Grip_Screwdriver_Phillips_Cushion",
+    "Diamond_Visions_Scissors_Red",
+    "OXO_Cookie_Spatula",
+    "Cole_Hardware_Hammer_Black",
+    "Threshold_Porcelain_Pitcher_White",
+    "Threshold_Porcelain_Teapot_White",
+    "Ecoforms_Cup_B4_SAN",
+    "Threshold_Ramekin_White_Porcelain",
+    "Threshold_Tray_Rectangle_Porcelain"
+  ],
+  "preshapes": [],
+  "per_grasp": 50,
+  "seed": 20261111,
+  "resolution": [
+    640,
+    480
+  ],
+  "expected_pairs": 36,
+  "object_material_prob": 0.5
+}

@@ -18,6 +18,11 @@ using UnityEngine.Perception.Randomization.Scenarios;
 /// -preshapes: comma-separated preshape filter (empty or omitted = all grasps).
 /// -prefabs: optional comma-separated prefab names (looked up in Assets/Prefabs/YCB and Assets/Prefabs/GSO)
 ///           replacing the scenario's prefabs list; omitted = keep the list saved in the scene.
+/// -objectMaterialProb: probability (0..1) that a sequence's object texture is replaced by a random plain
+///           colour (WristCameraMovement.samplingRangeObjectMaterial); omitted = 0, the scene's value.
+///           Material draws do not change the other random draws, so the sequence parameters equal those
+///           of the same build with 0. The frames also differ by exposure: HDRP's automatic exposure
+///           carries over from a recoloured sequence into the first frames of the next one.
 /// Iteration Count is set to (number of selected object-grasp pairs) * perGrasp.
 ///
 /// Build only some GSO prefabs (the others, e.g. with hand-placed grasps, are not touched):
@@ -65,6 +70,10 @@ public static class BatchDataCollection
         List<string> prefabNames = ListArg("-prefabs");
         int perGrasp = int.Parse(Arg("-perGrasp", "50"));
         uint seed = uint.Parse(Arg("-seed", "539662088"));
+        float objectMaterialProb = float.Parse(Arg("-objectMaterialProb", "0"),
+                                               System.Globalization.CultureInfo.InvariantCulture);
+        if (objectMaterialProb < 0f || objectMaterialProb > 1f)
+            throw new ArgumentException("-objectMaterialProb must be in [0, 1]: " + objectMaterialProb);
         string buildPath = Arg("-buildPath") ?? throw new ArgumentException("-buildPath is required");
 
         byte[] backup = File.ReadAllBytes(ScenePath);
@@ -78,6 +87,7 @@ public static class BatchDataCollection
             wrist.preshapeFilter = preshapes;
             wrist.graspTypeFilter = new List<string>();
             wrist.numIterationsPerGrasp = perGrasp;
+            wrist.samplingRangeObjectMaterial = objectMaterialProb;
 
             int pairs = 0;
             foreach (GameObject obj in wrist.prefabs.categories.Select(c => c.Item1))
@@ -96,7 +106,8 @@ public static class BatchDataCollection
             EditorSceneManager.SaveScene(scene);
             Debug.Log($"[BatchDataCollection] prefabs={wrist.prefabs.categories.Count} " +
                       $"preshapes=[{string.Join(",", preshapes)}] pairs={pairs} " +
-                      $"perGrasp={perGrasp} iterationCount={scenario.constants.iterationCount} seed={seed}");
+                      $"perGrasp={perGrasp} iterationCount={scenario.constants.iterationCount} seed={seed} " +
+                      $"objectMaterialProb={objectMaterialProb.ToString("R", System.Globalization.CultureInfo.InvariantCulture)}");
 
             Directory.CreateDirectory(Path.GetDirectoryName(buildPath));
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions

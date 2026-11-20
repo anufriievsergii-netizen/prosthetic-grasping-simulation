@@ -86,6 +86,14 @@ public sealed class GraspTypeLabeler : CameraLabeler
             seqValues.AddInt("ps_start_frame", seq.psStartFrame);
             seqValues.AddInt("ps_duration_frames", seq.psDurationFrames);
             seqValues.AddInt("fe_start_frame", seq.feStartFrame);
+            // Only for sequences whose texture was replaced by a plain colour, so that the
+            // output of renders without texture randomisation stays unchanged
+            if (seq.objectMaterialRandomised)
+            {
+                seqValues.AddBool("object_material_randomised", true);
+                seqValues.AddFloat("object_metallic", seq.objectMetallic);
+                seqValues.AddFloat("object_smoothness", seq.objectSmoothness);
+            }
         }
 
         static float[] ToArray(Vector3 v)

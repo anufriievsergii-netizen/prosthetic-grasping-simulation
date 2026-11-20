@@ -121,6 +121,13 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
             public int psStartFrame;
             public int psDurationFrames;
             public int feStartFrame;
+            // Whether the object's texture was replaced by a random plain colour in this
+            // sequence (samplingRangeObjectMaterial), and the metallic and smoothness given to
+            // it. Logged explicitly since texture_name alone is ambiguous (e.g. the own
+            // material of red_wood_block and the plain colour are both named "Red")
+            public bool objectMaterialRandomised;
+            public float objectMetallic;
+            public float objectSmoothness;
         }
 
         /// <summary>
@@ -223,6 +230,12 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
         private UniformSampler samplerObjectSmoothnessProperty;
         private float objectMetallicBaseValue;
         private float objectSmoothnessBaseValue;
+        // What randomObjectMaterial did in the current iteration (for SequenceParameters)
+        private bool objMaterialRandomised = false;
+        private float objMetallicValue = 0f;
+        private float objSmoothnessValue = 0f;
+        // Salt for the random state of the material draws (see randomObjectMaterial)
+        private const uint OBJECT_MATERIAL_SEED_SALT = 0x4D41544Cu;  // "MATL"
 
         /// <summary>
         /// Put here the hand obj. We will randomize the pose 
@@ -355,27 +368,47 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
 
         private void randomObjectMaterial(GameObject instance)
         {
+            objMaterialRandomised = false;
+            objMetallicValue = 0f;
+            objSmoothnessValue = 0f;
+
+            // The decision is always drawn from the scenario's random state, as before, so a
+            // render with samplingRangeObjectMaterial = 0 is unchanged
             float sampledFloat = samplerApplyMaterialObject.Sample();
             if (sampledFloat <= samplingRangeObjectMaterial)
             {
-                // Use sharedMaterial, since the material getter would instantiate
-                // a new copy of the material at each call
-                Renderer objRenderer = instance.transform.Find("textured").GetComponent<Renderer>();
-                originalObjMaterial = objRenderer.sharedMaterial;
-                // Work on a copy of the sampled material, since its properties are 
-                // modified below and the material asset must not be changed. The name is 
-                // kept since the GraspTypeLabeler uses it
-                Material sampledMaterial = materialsObject.Sample();
-                sampledObjMaterialInstance = new Material(sampledMaterial) { name = sampledMaterial.name };
-                objRenderer.sharedMaterial = sampledObjMaterialInstance;
+                // The material, metallic and smoothness draws use a random state derived from
+                // the current one, which is restored afterwards. Otherwise these three extra
+                // draws would shift every later draw of the iteration (target point, placement
+                // retries, pronation-supination, flexion-extension), and a render with p > 0
+                // would no longer have the same sequences as the render with p = 0 and the same
+                // seed: the texture would not be the only difference
+                uint savedRandomState = SamplerState.randomState;
+                SamplerState.randomState = SamplerUtility.IterateSeed(OBJECT_MATERIAL_SEED_SALT, savedRandomState);
+                try
+                {
+                    // Use sharedMaterial, since the material getter would instantiate
+                    // a new copy of the material at each call
+                    Renderer objRenderer = instance.transform.Find("textured").GetComponent<Renderer>();
+                    originalObjMaterial = objRenderer.sharedMaterial;
+                    // Work on a copy of the sampled material, since its properties are
+                    // modified below and the material asset must not be changed. The name is
+                    // kept since the GraspTypeLabeler uses it
+                    Material sampledMaterial = materialsObject.Sample();
+                    sampledObjMaterialInstance = new Material(sampledMaterial) { name = sampledMaterial.name };
+                    objRenderer.sharedMaterial = sampledObjMaterialInstance;
 
-                // Modify the metallic and smoothness of the material
-                float sampledMetallicValue = samplerObjectMetallicProperty.Sample();
-                float sampledSmoothnessValue = samplerObjectSmoothnessProperty.Sample();
-                sampledObjMaterialInstance.SetFloat("_Metallic", 
-                                         objectMetallicBaseValue + sampledMetallicValue);
-                sampledObjMaterialInstance.SetFloat("_Smoothness", 
-                                         objectSmoothnessBaseValue + sampledSmoothnessValue);
+                    // Modify the metallic and smoothness of the material
+                    objMetallicValue = objectMetallicBaseValue + samplerObjectMetallicProperty.Sample();
+                    objSmoothnessValue = objectSmoothnessBaseValue + samplerObjectSmoothnessProperty.Sample();
+                    sampledObjMaterialInstance.SetFloat("_Metallic", objMetallicValue);
+                    sampledObjMaterialInstance.SetFloat("_Smoothness", objSmoothnessValue);
+                    objMaterialRandomised = true;
+                }
+                finally
+                {
+                    SamplerState.randomState = savedRandomState;
+                }
             }
         }
 
@@ -908,7 +941,10 @@ namespace UnityEngine.Perception.Randomization.Randomizers.SampleRandomizers
                 psAngle = float.IsNaN(psAngle) ? 0f : psAngle,
                 psStartFrame = (int)psRotationStartingSampledValue,
                 psDurationFrames = (int)psRotationDurationSampledValue,
-                feStartFrame = (int)feRotationStartingSampledValue
+                feStartFrame = (int)feRotationStartingSampledValue,
+                objectMaterialRandomised = objMaterialRandomised,
+                objectMetallic = objMetallicValue,
+                objectSmoothness = objSmoothnessValue
             };
         }
 
